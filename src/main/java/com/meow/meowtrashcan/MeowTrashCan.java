@@ -155,7 +155,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 } catch (IOException | NumberFormatException e) {
                     e.printStackTrace();
                 }
-            }
+            } 
         }
     }
 
