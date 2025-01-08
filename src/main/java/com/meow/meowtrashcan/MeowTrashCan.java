@@ -104,7 +104,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                     return true;
                 }
                 // 获取所有存在页面的总数
-                int totalPages = getTotalPages();
+                int totalItems = allTrashItems.size();
+                int totalPages = getTotalPages(totalItems);
                 if (totalPages > 0) {
                     int randomPage = (int) (Math.random() * totalPages); // 随机选一页
                     openDigInventory(player, randomPage); // 打开选中的页面
