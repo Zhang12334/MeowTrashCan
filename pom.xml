@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.meow</groupId>
-    <artifactId>MeowUID</artifactId>
-    <version>beta</version>
+    <artifactId>MeowTrashCan</artifactId>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>MeowUID</name>
+    <name>MeowTrashCan</name>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -36,12 +36,12 @@
             <version>${spigot.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- PlaceholderAPI 依赖 -->
+        <!-- MySQL 依赖 -->
         <dependency>
-         <groupId>me.clip</groupId>
-          <artifactId>placeholderapi</artifactId>
-          <version>2.11.6</version>
-         <scope>provided</scope>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.23</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
@@ -94,7 +94,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>com.meow.meowuid.MeowUID</mainClass>  <!-- 主类 -->
+                            <mainClass>com.example.meowtrashcan.MeowTrashCan</mainClass>  <!-- 主类 -->
                         </manifest>
                     </archive>
                 </configuration>

@@ -1,18 +1,23 @@
-name: MeowUID
-main: com.meow.meowuid.MeowUID
-version: 1.1
+name: MeowTrashCan
+main: com.meow.meowtrashcan.MeowTrashCan
+version: 1.0
 api-version: 1.16
-description: A plugin to assign unique UIDs to players and sync across multiple servers using MySQL.
-softdepend: [PlaceholderAPI]
+description: MeowTrashCan - 支持翻垃圾的跨服垃圾桶插件
 
 commands:
-  muid:
-    description: Manage and query player UIDs.
-    usage: /muid <find|reload>
-    permission: meowuid.admin
-    permission-message: "§cYou do not have permission to use this command."
-    
+  meowtrashcan:
+    description: MeowTrashCan主命令
+    usage: /<command> <throw|flip|reload>
+    aliases:
+      - mtc
+
 permissions:
-  meowuid.admin:
-    description: Allows access to all /muid commands.
+  meowtrashcan.throw:
+    description: Permission to throw items into the trash bin.
+    default: true
+  meowtrashcan.flip:
+    description: Permission to flip through trash.
+    default: true
+  meowtrashcan.reload:
+    description: Permission to reload the plugin configuration.
     default: op
