@@ -18,5 +18,3 @@ mysql:
   database: meow_uid
   username: meow_uid
   password: password
-  max-retries: 3
-  retry-delay: 5000

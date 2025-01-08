@@ -31,6 +31,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        // bstats
+        int pluginId = 24401;
+        Metrics metrics = new Metrics(this, pluginId);
+        // 读配置        
         saveDefaultConfig();
         storageType = getConfig().getString("storage", "json");
         useMySQL = storageType.equalsIgnoreCase("mysql");
@@ -39,6 +43,18 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             setupMySQL();
         }
         loadTrashItems(); // 从数据库或 JSON 文件加载垃圾物品
+        // 更新检查部分
+        getLogger().info(messages.get("startupMessage"));
+        String currentVersion = getDescription().getVersion();
+        getLogger().info(messages.get("nowusingversionMessage") + " v" + currentVersion);
+        getLogger().info(messages.get("checkingUpdateMessage"));
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                check_update();
+            }
+        }.runTaskAsynchronously(this);
+        // 注册事件
         getServer().getPluginManager().registerEvents(this, this);
     }
 
@@ -54,6 +70,88 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         saveTrashItems(); // 保存垃圾物品到数据库或 JSON 文件
     }
 
+    // 检查更新方法
+    private void check_update() {
+        // 获取当前版本号
+        String currentVersion = getDescription().getVersion();
+        // github加速地址，挨个尝试
+        String[] githubUrls = {
+            "https://ghp.ci/",
+            "https://raw.fastgit.org/",
+            ""
+            //最后使用源地址
+        };
+        // 获取 github release 最新版本号作为最新版本
+        // 仓库地址：https://github.com/Zhang12334/MeowTrashCan
+        String latestVersionUrl = "https://github.com/Zhang12334/MeowTrashCan/releases/latest";
+        // 获取版本号
+        try {
+            String latestVersion = null;
+            for (String url : githubUrls) {
+                HttpURLConnection connection = (HttpURLConnection) new URL(url + latestVersionUrl).openConnection();
+                connection.setInstanceFollowRedirects(false); // 不自动跟随重定向
+                int responseCode = connection.getResponseCode();
+                if (responseCode == 302) { // 如果 302 了
+                    String redirectUrl = connection.getHeaderField("Location");
+                    if (redirectUrl != null && redirectUrl.contains("tag/")) {
+                        // 从重定向URL中提取版本号
+                        latestVersion = extractVersionFromUrl(redirectUrl);
+                        break; // 找到版本号后退出循环
+                    }
+                }
+                connection.disconnect();
+                if (latestVersion != null) {
+                    break; // 找到版本号后退出循环
+                }
+            }
+            if (latestVersion == null) {
+                getLogger().warning(messages.get("checkfailedMessage"));
+                return;
+            }
+            // 比较版本号
+            if (isVersionGreater(latestVersion, currentVersion)) {
+                // 如果有新版本，则提示新版本
+                getLogger().warning(messages.get("updateavailableMessage") + " v" + latestVersion);
+                // 提示下载地址（latest release地址）
+                getLogger().warning(messages.get("updateurlMessage") + " https://github.com/Zhang12334/MeowTrashCan/releases/latest");
+                getLogger().warning(messages.get("oldversionmaycauseproblemMessage"));
+            } else {
+                getLogger().info(messages.get("nowusinglatestversionMessage"));
+            }
+        } catch (Exception e) {
+            getLogger().warning(messages.get("checkfailedMessage"));
+        }
+    }
+
+    // 版本比较
+    private boolean isVersionGreater(String version1, String version2) {
+        String[] v1Parts = version1.split("\\.");
+        String[] v2Parts = version2.split("\\.");
+        for (int i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
+            int v1Part = i < v1Parts.length ? Integer.parseInt(v1Parts[i]) : 0;
+            int v2Part = i < v2Parts.length ? Integer.parseInt(v2Parts[i]) : 0;
+            if (v1Part > v2Part) {
+                return true;
+            } else if (v1Part < v2Part) {
+                return false;
+            }
+        }
+        return false;
+    }
+    
+    private String extractVersionFromUrl(String url) {
+        // 解析 302 URL 中的版本号
+        int tagIndex = url.indexOf("tag/");
+        if (tagIndex != -1) {
+            int endIndex = url.indexOf('/', tagIndex + 4);
+            if (endIndex == -1) {
+                endIndex = url.length();
+            }
+            return url.substring(tagIndex + 4, endIndex);
+        }
+        return null;
+    }
+
     private void setupMySQL() {
         String host = getConfig().getString("mysql.host");
         int port = getConfig().getInt("mysql.port");
@@ -61,20 +159,24 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         String username = getConfig().getString("mysql.username");
         String password = getConfig().getString("mysql.password");
 
+        // 添加 autoReconnect 参数
+        String url = String.format(
+                "jdbc:mysql://%s:%d/%s?autoReconnect=true&autoReconnectForPools=true&useSSL=false&serverTimezone=UTC",
+                host, port, database
+        );
+
         try {
-            connection = DriverManager.getConnection(
-                    "jdbc:mysql://" + host + ":" + port + "/" + database,
-                    username,
-                    password
-            );
+            connection = DriverManager.getConnection(url, username, password);
             connection.createStatement().executeUpdate(
                     "CREATE TABLE IF NOT EXISTS trash_items (id INT AUTO_INCREMENT PRIMARY KEY, material VARCHAR(255), amount INT)"
             );
+            getLogger().info(messages.get("connect_database_successful"));
         } catch (SQLException e) {
             e.printStackTrace();
             getLogger().severe(messages.get("failed_connect_database"));
         }
     }
+
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -98,8 +200,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 }
                 openTrashInventory(player);
                 break;
-            case "flip":
-                if (!player.hasPermission("meowtrashcan.flip")) {
+            case "dig":
+                if (!player.hasPermission("meowtrashcan.dig")) {
                     player.sendMessage(messages.get("no_permission"));
                     return true;
                 }
@@ -246,6 +348,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                             inventory.setItem(slot, null); // 从界面移除物品
                             allTrashItems.remove(clickedItem); // 从垃圾列表移除
                             saveTrashItems(); // 保存垃圾列表
+                            openDigInventory(player, getCurrentPage(inventory)); // 刷新当前页
                         } else {
                             // 如果背包已满，提示玩家
                             player.sendMessage(ChatColor.RED + messages.get("inventory_full"));
@@ -280,7 +383,18 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("last_page", "Previous page");
             messages.put("no_last_page", "No previous page");
             messages.put("next_page", "Next page");
-            messages.put("no_next_page", "No next page");            
+            messages.put("no_next_page", "No next page");     
+            messages.put("connect_database_successful", "Connected to MySQL database successfully!");
+            messages.put("startupMessage", "MeowTrashCan has loaded!");
+            messages.put("shutdownMessage", "MeowTrashCan has been unloaded!");
+            messages.put("nowusingversionMessage", "Currently using version:");
+            messages.put("checkingupdateMessage", "Checking for updates...");
+            messages.put("checkfailedMessage", "Failed to check for updates. Please check your network connection!");
+            messages.put("updateavailableMessage", "New version available:");
+            messages.put("updateurlMessage", "New version download URL:");
+            messages.put("oldversionmaycauseproblemMessage", "The old version may cause problems. Please update as soon as possible!");
+            messages.put("nowusinglatestversionMessage", "You are using the latest version!");
+
         } else if (language.equalsIgnoreCase("zh_tc")) {//繁体消息
             messages.put("only_players", ChatColor.RED + "只有玩家能使用這個指令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -298,6 +412,17 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("no_last_page", "無上一頁");
             messages.put("next_page", "下一页");
             messages.put("no_next_page", "無下一頁");
+            messages.put("connect_database_successful", "資料庫連線成功!");
+            messages.put("startupMessage", "MeowTrashCan 已加載!");
+            messages.put("shutdownMessage", "MeowTrashCan 已卸載!");
+            messages.put("nowusingversionMessage", "當前使用版本:");
+            messages.put("checkingupdateMessage", "正在檢查更新...");
+            messages.put("checkfailedMessage", "檢查更新失敗，請檢查您的網絡狀況!");
+            messages.put("updateavailableMessage", "發現新版本:");
+            messages.put("updateurlMessage", "新版本下載地址:");
+            messages.put("oldversionmaycauseproblemMessage", "舊版本可能會導致問題，請盡快更新!");
+            messages.put("nowusinglatestversionMessage", "您正在使用最新版本!");
+
         } else if (language.equalsIgnoreCase("zh_cn")) {//简体消息
             messages.put("only_players", ChatColor.RED + "只有玩家可以使用此命令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -315,6 +440,16 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("no_last_page", "无上一页");
             messages.put("next_page", "下一页");
             messages.put("no_next_page", "无下一页");
+            messages.put("connect_database_successful", "数据库连接成功!");
+            messages.put("startupMessage", "MeowTrashCan 已加载!");
+            messages.put("shutdownMessage", "MeowTrashCan 已卸载!");
+            messages.put("nowusingversionMessage", "当前使用版本:");
+            messages.put("checkingupdateMessage", "正在检查更新...");
+            messages.put("checkfailedMessage", "检查更新失败，请检查你的网络状况!");
+            messages.put("updateavailableMessage", "发现新版本:");
+            messages.put("updateurlMessage", "新版本下载地址:");
+            messages.put("oldversionmaycauseproblemMessage", "旧版本可能会导致问题，请尽快更新!");
+            messages.put("nowusinglatestversionMessage", "您正在使用最新版本!");          
         }
     }
 
