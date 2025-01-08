@@ -103,7 +103,14 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                     player.sendMessage(messages.get("no_permission"));
                     return true;
                 }
-                openDigInventory(player, 0);
+                // 获取所有存在页面的总数
+                int totalPages = getTotalPages();
+                if (totalPages > 0) {
+                    int randomPage = (int) (Math.random() * totalPages); // 随机选一页
+                    openDigInventory(player, randomPage); // 打开选中的页面
+                } else {
+                    openDigInventory(player, 0); // 空的则打开首个页面
+                }
                 break;
             case "reload":
                 if (!player.hasPermission("meowtrashcan.reload")) {
@@ -312,6 +319,11 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         Inventory trashInventory = Bukkit.createInventory(player, 54, ChatColor.GREEN + messages.get("trashbin_throw"));
         trashInventories.put(player.getUniqueId(), trashInventory);
         player.openInventory(trashInventory);
+    }
+
+    public int getTotalPages(int totalItems) {
+        // 计算最大页数，每页最多显示45个项目
+        return (totalItems == 0) ? 1 : (totalItems - 1) / 45 + 1;
     }
 
     private void openDigInventory(Player player, int page) {
