@@ -103,6 +103,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                     player.sendMessage(messages.get("no_permission"));
                     return true;
                 }
+                loadTrashItems();
                 // 获取所有存在页面的总数
                 int totalItems = allTrashItems.size();
                 int totalPages = getTotalPages(totalItems);
@@ -235,6 +236,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             } else if (slot < 45) { // 点击物品槽
                 ItemStack clickedItem = event.getCurrentItem();
                 if (clickedItem != null && clickedItem.getType() != Material.AIR) {
+                    loadTrashItems();
                     // 检查物品是否在垃圾桶列表中
                     if (allTrashItems.contains(clickedItem)) {
                         // 尝试将物品加入玩家背包
@@ -328,6 +330,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
     private void openDigInventory(Player player, int page) {
+        loadTrashItems();
         Inventory digInventory = Bukkit.createInventory(player, 54, ChatColor.YELLOW + messages.get("trashbin_flip"));
 
         int totalItems = allTrashItems.size();
