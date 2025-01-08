@@ -294,7 +294,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                     player.sendMessage(messages.get("no_permission"));
                     return true;
                 }
-                openDigInventory(player);
+                openDigInventory(player, 0);
                 break;
             case "reload":
                 if (!player.hasPermission("meowtrashcan.reload")) {
