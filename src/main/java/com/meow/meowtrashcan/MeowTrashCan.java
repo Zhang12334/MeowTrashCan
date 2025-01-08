@@ -72,7 +72,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             );
         } catch (SQLException e) {
             e.printStackTrace();
-            getLogger().severe(messages.get("failed_connect_database");
+            getLogger().severe(messages.get("failed_connect_database"));
         }
     }
 
