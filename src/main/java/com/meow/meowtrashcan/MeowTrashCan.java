@@ -1,4 +1,4 @@
-package com.example.meowtrashcan;
+package com.meow.meowtrashcan;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
