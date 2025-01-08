@@ -209,10 +209,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getView().getTitle().equals(ChatColor.YELLOW + messages.get("trashbin_flip"))) {
-            event.setCancelled(true);
+            event.setCancelled(true); // 取消默认点击行为
 
             int slot = event.getRawSlot();
-            if (slot < 0 || slot >= 54) return;
+            if (slot < 0 || slot >= 54) return; // 确保点击在有效范围内
 
             Inventory inventory = event.getInventory();
             Player player = (Player) event.getWhoClicked();
@@ -221,13 +221,20 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 openDigInventory(player, getCurrentPage(inventory) - 1);
             } else if (slot == 53) { // 下一页按钮
                 openDigInventory(player, getCurrentPage(inventory) + 1);
-            } else if (slot < 45) { // 物品点击
+            } else if (slot < 45) { // 点击物品槽
                 ItemStack clickedItem = event.getCurrentItem();
                 if (clickedItem != null && clickedItem.getType() != Material.AIR) {
-                    player.getInventory().addItem(clickedItem);
-                    inventory.setItem(slot, null); // 移除已取走的物品
-                    allTrashItems.remove(clickedItem); // 从垃圾列表中移除
-                    saveTrashItems(); // 每次更新后保存
+                    // 尝试将物品加入玩家背包
+                    HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(clickedItem);
+                    if (remaining.isEmpty()) {
+                        // 如果成功加入背包
+                        inventory.setItem(slot, null); // 从界面移除物品
+                        allTrashItems.remove(clickedItem); // 从垃圾列表移除
+                        saveTrashItems(); // 保存垃圾列表
+                    } else {
+                        // 如果背包已满，提示玩家
+                        player.sendMessage(ChatColor.RED + messages.get("inventory_full")); // 自定义消息
+                    }
                 }
             }
         }
