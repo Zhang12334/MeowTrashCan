@@ -63,6 +63,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        saveTrashItems(); // 保存垃圾物品到数据库或 JSON 文件
         if (useMySQL && connection != null) {
             try {
                 connection.close();
@@ -70,7 +71,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 e.printStackTrace();
             }
         }
-        saveTrashItems(); // 保存垃圾物品到数据库或 JSON 文件
     }
 
     // 检查更新方法
