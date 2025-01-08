@@ -299,7 +299,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             case "reload":
                 if (!player.hasPermission("meowtrashcan.reload")) {
                     player.sendMessage(messages.get("no_permission"));
-                    return true;
+                    return true; 
                 }
                 reloadConfig();
                 loadMessages();
