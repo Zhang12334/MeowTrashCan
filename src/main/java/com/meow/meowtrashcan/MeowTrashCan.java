@@ -236,11 +236,11 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                             saveTrashItems(); // 保存垃圾列表
                         } else {
                             // 如果背包已满，提示玩家
-                            player.sendMessage(ChatColor.RED + messages.get("inventory_full")); // 自定义消息
+                            player.sendMessage(ChatColor.RED + messages.get("inventory_full"));
                         }
                     } else {
                         // 物品不在垃圾桶中，刷新界面并提示
-                        player.sendMessage(ChatColor.RED + "该物品已被移除或不存在！");
+                        player.sendMessage(ChatColor.RED + messages.get("not_in_trashbin"));
                         openDigInventory(player, getCurrentPage(inventory)); // 刷新当前页
                     }
                 }
@@ -263,6 +263,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("trashbin_throw", "Trash Bin - Throw");
             messages.put("trashbin_flip", "Trash Bin - Dig");
             messages.put("inventory_full", ChatColor.RED + "Your inventory is full, you cannot pick up items!");
+            messages.put("not_in_trashbin", ChatColor.RED + "The item you picked up has been picked up by others, it has been refreshed for you!")
         } else if (language.equalsIgnoreCase("zh_tc")) {//繁体消息
             messages.put("only_players", ChatColor.RED + "只有玩家能使用這個指令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -274,6 +275,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("trashbin_throw", "丟垃圾");
             messages.put("trashbin_flip", "翻垃圾");
             messages.put("inventory_full", ChatColor.RED + "你的背包已滿, 無法拾取物品!");
+            messages.put("not_in_trashbin", ChatColor.RED + "你拾取的物品已被他人拾取, 已為您刷新垃圾桶清單!")
         } else if (language.equalsIgnoreCase("zh_cn")) {//简体消息
             messages.put("only_players", ChatColor.RED + "只有玩家可以使用此命令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -285,6 +287,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("trashbin_throw", "丢垃圾");
             messages.put("trashbin_flip", "翻垃圾");
             messages.put("inventory_full", ChatColor.RED + "你的背包已满, 无法拾取物品!");
+            messages.put("not_in_trashbin", ChatColor.RED + "你拾取的物品已被他人拾取, 已为您刷新垃圾桶列表!");
         }
     }
 
