@@ -222,6 +222,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 openDigInventory(player, getCurrentPage(inventory) - 1);
             } else if (slot == 53) { // 下一页按钮
                 openDigInventory(player, getCurrentPage(inventory) + 1);
+            } else if (slot == 49) { // 中间页数按钮
+                openDigInventory(player, getCurrentPage(inventory)); //打开当前页的page，即刷新
             } else if (slot < 45) { // 点击物品槽
                 ItemStack clickedItem = event.getCurrentItem();
                 if (clickedItem != null && clickedItem.getType() != Material.AIR) {
@@ -329,7 +331,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 digInventory.setItem(i, emptyMessage);
             }
         } else {
-            int maxPages = (totalItems + 53) / 54;
+            int maxPages = (totalItems == 0) ? 1 : (totalItems - 1) / 45 + 1;
             page = Math.min(Math.max(page, 0), maxPages - 1); // 限制页面范围
 
             int startIndex = page * 45; // 前45个用于物品展示
