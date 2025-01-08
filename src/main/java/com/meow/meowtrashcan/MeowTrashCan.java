@@ -340,7 +340,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 openDigInventory(player, getCurrentPage(inventory)); //打开当前页的page，即刷新
             } else if (slot < 45) { // 点击物品槽
                 ItemStack clickedItem = event.getCurrentItem();
-                if (clickedItem != null && clickedItem.getType() != Material.AIR) {
+                // 如果点击的是空气、屏障或无物品则不进行操作
+                if (clickedItem != null && clickedItem.getType() != Material.AIR && clickedItem.getType() != Material.BARRIER) {
                     loadTrashItems();
                     // 检查物品是否在垃圾桶列表中
                     if (allTrashItems.contains(clickedItem)) {
