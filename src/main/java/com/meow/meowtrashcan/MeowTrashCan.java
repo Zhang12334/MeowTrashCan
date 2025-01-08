@@ -123,26 +123,47 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         player.openInventory(trashInventory);
     }
 
-    private void openDigInventory(Player player) {
+    private void openDigInventory(Player player, int page) {
         Inventory digInventory = Bukkit.createInventory(player, 54, ChatColor.YELLOW + messages.get("trashbin_flip"));
+
         int totalItems = allTrashItems.size();
+        int maxPages = (totalItems + 53) / 54;
+        page = Math.min(Math.max(page, 0), maxPages - 1); // 限制页面范围
 
-        if (totalItems > 0) {
-            int randomPage = ThreadLocalRandom.current().nextInt((totalItems + 53) / 54); // Use 54 instead of 27
-            int startIndex = randomPage * 54;
-
-            for (int i = 0; i < 54 && startIndex + i < totalItems; i++) {
-                digInventory.setItem(i, allTrashItems.get(startIndex + i));
-            }
-
-            ItemStack pageIndicator = new ItemStack(Material.PAPER);
-            ItemMeta meta = pageIndicator.getItemMeta();
-            if (meta != null) {
-                meta.setDisplayName(ChatColor.BLUE + messages.get("page") + " " + (randomPage + 1));
-                pageIndicator.setItemMeta(meta);
-            }
-            digInventory.setItem(53, pageIndicator); // Update to place page indicator in last slot
+        int startIndex = page * 45; // 前45个用于物品展示
+        for (int i = 0; i < 45 && startIndex + i < totalItems; i++) {
+            digInventory.setItem(i, allTrashItems.get(startIndex + i));
         }
+
+        // 设置底部灰色玻璃片
+        ItemStack grayPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemMeta grayMeta = grayPane.getItemMeta();
+        if (grayMeta != null) grayMeta.setDisplayName(" ");
+        grayPane.setItemMeta(grayMeta);
+
+        for (int i = 45; i < 54; i++) {
+            digInventory.setItem(i, grayPane);
+        }
+
+        // 添加翻页按钮
+        ItemStack previousButton = new ItemStack(page > 0 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
+        ItemMeta previousMeta = previousButton.getItemMeta();
+        if (previousMeta != null) previousMeta.setDisplayName(ChatColor.GOLD + (page > 0 ? "上一页" : "无上一页"));
+        previousButton.setItemMeta(previousMeta);
+        digInventory.setItem(45, previousButton);
+
+        ItemStack nextButton = new ItemStack(page < maxPages - 1 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
+        ItemMeta nextMeta = nextButton.getItemMeta();
+        if (nextMeta != null) nextMeta.setDisplayName(ChatColor.GOLD + (page < maxPages - 1 ? "下一页" : "无下一页"));
+        nextButton.setItemMeta(nextMeta);
+        digInventory.setItem(53, nextButton);
+
+        // 页码指示器
+        ItemStack pageIndicator = new ItemStack(Material.PAPER);
+        ItemMeta pageMeta = pageIndicator.getItemMeta();
+        if (pageMeta != null) pageMeta.setDisplayName(ChatColor.BLUE + messages.get("page") + ": " + (page + 1) + "/" + maxPages);
+        pageIndicator.setItemMeta(pageMeta);
+        digInventory.setItem(49, pageIndicator);
 
         player.openInventory(digInventory);
     }
@@ -172,15 +193,41 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getView().getTitle().equals(ChatColor.YELLOW + messages.get("trashbin_flip"))) {
             event.setCancelled(true);
-            ItemStack clickedItem = event.getCurrentItem();
 
-            if (clickedItem != null && clickedItem.getType() != Material.AIR) {
-                event.getWhoClicked().getInventory().addItem(clickedItem);
-                // Remove the item from the trash bin
-                event.getView().getTopInventory().remove(clickedItem);
-                updateTrashInventories(); // Update inventory after item removal
+            int slot = event.getRawSlot();
+            if (slot < 0 || slot >= 54) return;
+
+            Inventory inventory = event.getInventory();
+            Player player = (Player) event.getWhoClicked();
+
+            if (slot == 45) { // 上一页按钮
+                openDigInventory(player, getCurrentPage(inventory) - 1);
+            } else if (slot == 53) { // 下一页按钮
+                openDigInventory(player, getCurrentPage(inventory) + 1);
+            } else if (slot < 45) { // 物品点击
+                ItemStack clickedItem = event.getCurrentItem();
+                if (clickedItem != null && clickedItem.getType() != Material.AIR) {
+                    player.getInventory().addItem(clickedItem);
+                    inventory.setItem(slot, null); // 移除已取走的物品
+                    allTrashItems.remove(clickedItem); // 从垃圾列表中移除
+                }
             }
         }
+    }
+
+    private int getCurrentPage(Inventory inventory) {
+        ItemStack pageIndicator = inventory.getItem(49);
+        if (pageIndicator != null && pageIndicator.getType() == Material.PAPER) {
+            String displayName = pageIndicator.getItemMeta().getDisplayName();
+            String[] parts = ChatColor.stripColor(displayName).split(":");
+            if (parts.length > 1) {
+                try {
+                    return Integer.parseInt(parts[1].split("/")[0].trim()) - 1;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return 0;
     }
 
     private void updateTrashInventories() {
