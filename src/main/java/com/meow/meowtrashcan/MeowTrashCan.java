@@ -208,10 +208,11 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
+        // 检查是否是垃圾桶界面
         if (event.getView().getTitle().equals(ChatColor.YELLOW + messages.get("trashbin_flip"))) {
             event.setCancelled(true); // 取消默认点击行为
 
-            int slot = event.getRawSlot();
+            int slot = event.getRawSlot(); // 获取点击的物品槽索引
             if (slot < 0 || slot >= 54) return; // 确保点击在有效范围内
 
             Inventory inventory = event.getInventory();
@@ -224,16 +225,23 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             } else if (slot < 45) { // 点击物品槽
                 ItemStack clickedItem = event.getCurrentItem();
                 if (clickedItem != null && clickedItem.getType() != Material.AIR) {
-                    // 尝试将物品加入玩家背包
-                    HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(clickedItem);
-                    if (remaining.isEmpty()) {
-                        // 如果成功加入背包
-                        inventory.setItem(slot, null); // 从界面移除物品
-                        allTrashItems.remove(clickedItem); // 从垃圾列表移除
-                        saveTrashItems(); // 保存垃圾列表
+                    // 检查物品是否在垃圾桶列表中
+                    if (allTrashItems.contains(clickedItem)) {
+                        // 尝试将物品加入玩家背包
+                        HashMap<Integer, ItemStack> remaining = player.getInventory().addItem(clickedItem);
+                        if (remaining.isEmpty()) {
+                            // 如果成功加入背包
+                            inventory.setItem(slot, null); // 从界面移除物品
+                            allTrashItems.remove(clickedItem); // 从垃圾列表移除
+                            saveTrashItems(); // 保存垃圾列表
+                        } else {
+                            // 如果背包已满，提示玩家
+                            player.sendMessage(ChatColor.RED + messages.get("inventory_full")); // 自定义消息
+                        }
                     } else {
-                        // 如果背包已满，提示玩家
-                        player.sendMessage(ChatColor.RED + messages.get("inventory_full")); // 自定义消息
+                        // 物品不在垃圾桶中，刷新界面并提示
+                        player.sendMessage(ChatColor.RED + "该物品已被移除或不存在！");
+                        openDigInventory(player, getCurrentPage(inventory)); // 刷新当前页
                     }
                 }
             }
