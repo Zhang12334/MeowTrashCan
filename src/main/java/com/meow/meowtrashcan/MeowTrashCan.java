@@ -148,7 +148,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
 
             ItemStack pageIndicator = new ItemStack(Material.PAPER);
-            pageIndicator.getItemMeta().setDisplayName(ChatColor.BLUE + message. + (randomPage + 1));
+            pageIndicator.getItemMeta().setDisplayName(ChatColor.BLUE + messages.get("page") + (randomPage + 1));
             digInventory.setItem(26, pageIndicator);
         }
 
