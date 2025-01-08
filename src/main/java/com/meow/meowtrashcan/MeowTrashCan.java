@@ -75,7 +75,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             getLogger().severe(messages.get("failed_connect_database"));
         }
     }
-    
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
@@ -112,7 +112,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 }
                 reloadConfig();
                 loadMessages();
-                saveItemsToStorage();
+                saveTrashItems();
+                loadTrashItems();
                 player.sendMessage(messages.get("reloaded"));
                 break;
             default:
