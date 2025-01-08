@@ -262,8 +262,13 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("page", "Now page");
             messages.put("trashbin_throw", "Trash Bin - Throw");
             messages.put("trashbin_flip", "Trash Bin - Dig");
-            messages.put("inventory_full", ChatColor.RED + "Your inventory is full, you cannot pick up items!");
-            messages.put("not_in_trashbin", ChatColor.RED + "The item you picked up has been picked up by others, it has been refreshed for you!");
+            messages.put("inventory_full", "Your inventory is full, you cannot pick up items!");
+            messages.put("not_in_trashbin", "The item you picked up has been picked up by others, it has been refreshed for you!");
+            messages.put("trashbin_null", "The trash bin is empty, please throw some items in it!");
+            messages.put("last_page", "Previous page");
+            messages.put("no_last_page", "No previous page");
+            messages.put("next_page", "Next page");
+            messages.put("no_next_page", "No next page");            
         } else if (language.equalsIgnoreCase("zh_tc")) {//繁体消息
             messages.put("only_players", ChatColor.RED + "只有玩家能使用這個指令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -274,8 +279,13 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("page", "當前頁數");
             messages.put("trashbin_throw", "丟垃圾");
             messages.put("trashbin_flip", "翻垃圾");
-            messages.put("inventory_full", ChatColor.RED + "你的背包已滿, 無法拾取物品!");
-            messages.put("not_in_trashbin", ChatColor.RED + "你拾取的物品已被他人拾取, 已為您刷新垃圾桶清單!");
+            messages.put("inventory_full", "你的背包已滿, 無法拾取物品!");
+            messages.put("not_in_trashbin", "你拾取的物品已被他人拾取, 已為您刷新垃圾桶清單!");
+            messages.put("trashbin_null", "垃圾桶为空!");
+            messages.put("last_page", "上一頁");
+            messages.put("no_last_page", "無上一頁");
+            messages.put("next_page", "下一页");
+            messages.put("no_next_page", "無下一頁");
         } else if (language.equalsIgnoreCase("zh_cn")) {//简体消息
             messages.put("only_players", ChatColor.RED + "只有玩家可以使用此命令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -286,8 +296,13 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("page", "当前页数");
             messages.put("trashbin_throw", "丢垃圾");
             messages.put("trashbin_flip", "翻垃圾");
-            messages.put("inventory_full", ChatColor.RED + "你的背包已满, 无法拾取物品!");
-            messages.put("not_in_trashbin", ChatColor.RED + "你拾取的物品已被他人拾取, 已为您刷新垃圾桶列表!");
+            messages.put("inventory_full", "你的背包已满, 无法拾取物品!");
+            messages.put("not_in_trashbin", "你拾取的物品已被他人拾取, 已为您刷新垃圾桶列表!");
+            messages.put("trashbin_null", "垃圾桶为空");
+            messages.put("last_page", "上一页");
+            messages.put("no_last_page", "无上一页");
+            messages.put("next_page", "下一页");
+            messages.put("no_next_page", "无下一页");
         }
     }
 
@@ -307,7 +322,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             ItemStack emptyMessage = new ItemStack(Material.BARRIER);
             ItemMeta emptyMeta = emptyMessage.getItemMeta();
             if (emptyMeta != null) {
-                emptyMeta.setDisplayName(ChatColor.RED + "垃圾桶为空！");
+                emptyMeta.setDisplayName(ChatColor.RED + messages.get("trashbin_null"));
             }
             emptyMessage.setItemMeta(emptyMeta);
             for (int i = 0; i < 54; i++) {
@@ -335,13 +350,13 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             // 添加翻页按钮
             ItemStack previousButton = new ItemStack(page > 0 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
             ItemMeta previousMeta = previousButton.getItemMeta();
-            if (previousMeta != null) previousMeta.setDisplayName(ChatColor.GOLD + (page > 0 ? "上一页" : "无上一页"));
+            if (previousMeta != null) previousMeta.setDisplayName(ChatColor.GOLD + (page > 0 ? messages.get("last_page") : messages.get("no_last_page")));
             previousButton.setItemMeta(previousMeta);
             digInventory.setItem(45, previousButton);
 
             ItemStack nextButton = new ItemStack(page < maxPages - 1 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
             ItemMeta nextMeta = nextButton.getItemMeta();
-            if (nextMeta != null) nextMeta.setDisplayName(ChatColor.GOLD + (page < maxPages - 1 ? "下一页" : "无下一页"));
+            if (nextMeta != null) nextMeta.setDisplayName(ChatColor.GOLD + (page < maxPages - 1 ? messages.get("next_page") : messages.get("no_next_page")));
             nextButton.setItemMeta(nextMeta);
             digInventory.setItem(53, nextButton);
 
