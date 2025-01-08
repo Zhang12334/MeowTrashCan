@@ -14,11 +14,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -26,7 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class MeowTrashCan extends JavaPlugin implements Listener {
 
     private final Map<UUID, Inventory> trashInventories = new HashMap<>();
-    private final List<ItemStack> allTrashItems = new ArrayList<>();
+    private final List<ItemStack> allTrashItems = new ArrayList<>(); // 内存中的垃圾物品列表
     private boolean useMySQL;
     private Connection connection;
     private Map<String, String> messages;
@@ -37,12 +34,11 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         saveDefaultConfig();
         storageType = getConfig().getString("storage", "json");
         useMySQL = storageType.equalsIgnoreCase("mysql");
-
+        loadMessages();
         if (useMySQL) {
             setupMySQL();
         }
-
-        loadMessages();
+        loadTrashItems(); // 从数据库或 JSON 文件加载垃圾物品
         getServer().getPluginManager().registerEvents(this, this);
     }
 
@@ -55,6 +51,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 e.printStackTrace();
             }
         }
+        saveTrashItems(); // 保存垃圾物品到数据库或 JSON 文件
     }
 
     private void setupMySQL() {
@@ -75,7 +72,116 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             );
         } catch (SQLException e) {
             e.printStackTrace();
-            getLogger().severe("Could not connect to MySQL database.");
+            getLogger().severe(messages.get("failed_connect_database");
+        }
+    }
+
+    private void loadTrashItems() {
+        allTrashItems.clear();
+        if (useMySQL) {
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("SELECT material, amount FROM trash_items")) {
+                while (resultSet.next()) {
+                    Material material = Material.getMaterial(resultSet.getString("material"));
+                    int amount = resultSet.getInt("amount");
+                    if (material != null) {
+                        allTrashItems.add(new ItemStack(material, amount));
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else {
+            File file = new File(getDataFolder(), "trash_items.json");
+            if (file.exists()) {
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String[] parts = line.split(",");
+                        Material material = Material.getMaterial(parts[0]);
+                        int amount = Integer.parseInt(parts[1]);
+                        if (material != null) {
+                            allTrashItems.add(new ItemStack(material, amount));
+                        }
+                    }
+                } catch (IOException | NumberFormatException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private void saveTrashItems() {
+        if (useMySQL) {
+            try (PreparedStatement clearStatement = connection.prepareStatement("DELETE FROM trash_items")) {
+                clearStatement.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return;
+            }
+
+            try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (material, amount) VALUES (?, ?)")) {
+                for (ItemStack item : allTrashItems) {
+                    insertStatement.setString(1, item.getType().toString());
+                    insertStatement.setInt(2, item.getAmount());
+                    insertStatement.addBatch();
+                }
+                insertStatement.executeBatch();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else {
+            File file = new File(getDataFolder(), "trash_items.json");
+            try (FileWriter writer = new FileWriter(file)) {
+                for (ItemStack item : allTrashItems) {
+                    writer.write(item.getType().toString() + "," + item.getAmount() + "\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        Player player = (Player) event.getPlayer();
+        Inventory closedInventory = event.getInventory();
+
+        if (trashInventories.containsKey(player.getUniqueId()) && closedInventory.equals(trashInventories.get(player.getUniqueId()))) {
+            for (ItemStack item : closedInventory.getContents()) {
+                if (item != null && item.getType() != Material.PAPER) { // Prevent paper item from being added
+                    allTrashItems.add(item);
+                }
+            }
+            closedInventory.clear();
+            saveTrashItems(); // 每次更新后保存
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getView().getTitle().equals(ChatColor.YELLOW + messages.get("trashbin_flip"))) {
+            event.setCancelled(true);
+
+            int slot = event.getRawSlot();
+            if (slot < 0 || slot >= 54) return;
+
+            Inventory inventory = event.getInventory();
+            Player player = (Player) event.getWhoClicked();
+
+            if (slot == 45) { // 上一页按钮
+                openDigInventory(player, getCurrentPage(inventory) - 1);
+            } else if (slot == 53) { // 下一页按钮
+                openDigInventory(player, getCurrentPage(inventory) + 1);
+            } else if (slot < 45) { // 物品点击
+                ItemStack clickedItem = event.getCurrentItem();
+                if (clickedItem != null && clickedItem.getType() != Material.AIR) {
+                    player.getInventory().addItem(clickedItem);
+                    inventory.setItem(slot, null); // 移除已取走的物品
+                    allTrashItems.remove(clickedItem); // 从垃圾列表中移除
+                    saveTrashItems(); // 每次更新后保存
+                }
+            }
         }
     }
 
@@ -115,7 +221,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("trashbin_flip", "翻垃圾");
         }
     }
-
 
     private void openTrashInventory(Player player) {
         Inventory trashInventory = Bukkit.createInventory(player, 54, ChatColor.GREEN + messages.get("trashbin_throw"));
@@ -168,58 +273,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         player.openInventory(digInventory);
     }
 
-    @EventHandler
-    public void onInventoryClose(InventoryCloseEvent event) {
-        Player player = (Player) event.getPlayer();
-        Inventory closedInventory = event.getInventory();
-
-        if (trashInventories.containsKey(player.getUniqueId()) && closedInventory.equals(trashInventories.get(player.getUniqueId()))) {
-            for (ItemStack item : closedInventory.getContents()) {
-                if (item != null && item.getType() != Material.PAPER) { // Prevent paper item from being added
-                    allTrashItems.add(item);
-                    if (useMySQL) {
-                        saveItemToDatabase(item);
-                    } else {
-                        saveItemToJson(item);
-                    }
-                }
-            }
-            closedInventory.clear();
-            updateTrashInventories();
-        }
-    }
-
-    @EventHandler
-    public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getView().getTitle().equals(ChatColor.YELLOW + messages.get("trashbin_flip"))) {
-            event.setCancelled(true);
-
-            int slot = event.getRawSlot();
-            if (slot < 0 || slot >= 54) return;
-
-            Inventory inventory = event.getInventory();
-            Player player = (Player) event.getWhoClicked();
-
-            if (slot == 45) { // 上一页按钮
-                openDigInventory(player, getCurrentPage(inventory) - 1);
-            } else if (slot == 53) { // 下一页按钮
-                openDigInventory(player, getCurrentPage(inventory) + 1);
-            } else if (slot < 45) { // 物品点击
-                ItemStack clickedItem = event.getCurrentItem();
-                if (clickedItem != null && clickedItem.getType() != Material.AIR) {
-                    player.getInventory().addItem(clickedItem);
-                    inventory.setItem(slot, null); // 移除已取走的物品
-                    allTrashItems.remove(clickedItem); // 从垃圾列表中移除
-                    if (useMySQL) {
-                        saveItemToDatabase(item);
-                    } else {
-                        saveItemToJson(item);
-                    }
-                }
-            }
-        }
-    }
-
     private int getCurrentPage(Inventory inventory) {
         ItemStack pageIndicator = inventory.getItem(49);
         if (pageIndicator != null && pageIndicator.getType() == Material.PAPER) {
@@ -233,88 +286,5 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         }
         return 0;
-    }
-
-    private void updateTrashInventories() {
-        // Update all players with the new trash inventory contents
-        for (UUID playerId : trashInventories.keySet()) {
-            Player player = Bukkit.getPlayer(playerId);
-            if (player != null && player.isOnline()) {
-                openTrashInventory(player); // Reopen trash inventory to update contents
-            }
-        }
-    }
-
-    private void saveItemToDatabase(ItemStack item) {
-        try (PreparedStatement statement = connection.prepareStatement(
-                "INSERT INTO trash_items (material, amount) VALUES (?, ?)"
-        )) {
-            statement.setString(1, item.getType().toString());
-            statement.setInt(2, item.getAmount());
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void saveItemToJson(ItemStack item) {
-        try {
-            File file = new File(getDataFolder(), "trash_items.json");
-            if (!file.exists()) {
-                file.createNewFile();
-            }
-
-            FileWriter writer = new FileWriter(file, true);
-            writer.write(item.getType().toString() + "," + item.getAmount() + "\n");
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage(messages.get("only_players"));
-            return true;
-        }
-
-        Player player = (Player) sender;
-
-        if (args.length < 1) {
-            player.sendMessage(messages.get("usage"));
-            return true;
-        }
-
-        switch (args[0].toLowerCase()) {
-            case "throw":
-                if (!player.hasPermission("meowtrashcan.throw")) {
-                    player.sendMessage(messages.get("no_permission"));
-                    return true;
-                }
-                openTrashInventory(player);
-                break;
-            case "flip":
-                if (!player.hasPermission("meowtrashcan.flip")) {
-                    player.sendMessage(messages.get("no_permission"));
-                    return true;
-                }
-                openDigInventory(player, 0);
-                break;
-            case "reload":
-                if (!player.hasPermission("meowtrashcan.reload")) {
-                    player.sendMessage(messages.get("no_permission"));
-                    return true; 
-                }
-                reloadConfig();
-                loadMessages();
-                player.sendMessage(messages.get("reloaded"));
-                break;
-            default:
-                player.sendMessage(messages.get("unknown_command"));
-                break;
-        }
-
-        return true;
     }
 }
