@@ -85,7 +85,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                     }
                 } else {
                     getLogger().severe("Failed to connect to the MySQL database after " + maxRetries + " attempts.");
-                    getLogger().severe(message.get("failed_connect_database")); // 显示连接失败的消息
+                    getLogger().severe(messages.get("failed_connect_database")); // 显示连接失败的消息
                 }
             }
         }
