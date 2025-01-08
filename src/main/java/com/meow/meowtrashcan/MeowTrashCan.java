@@ -75,6 +75,53 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             getLogger().severe(messages.get("failed_connect_database"));
         }
     }
+    
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(messages.get("only_players"));
+            return true;
+        }
+
+        Player player = (Player) sender;
+
+        if (args.length < 1) {
+            player.sendMessage(messages.get("usage"));
+            return true;
+        }
+
+        switch (args[0].toLowerCase()) {
+            case "throw":
+                if (!player.hasPermission("meowtrashcan.throw")) {
+                    player.sendMessage(messages.get("no_permission"));
+                    return true;
+                }
+                openTrashInventory(player);
+                break;
+            case "flip":
+                if (!player.hasPermission("meowtrashcan.flip")) {
+                    player.sendMessage(messages.get("no_permission"));
+                    return true;
+                }
+                openDigInventory(player, 0);
+                break;
+            case "reload":
+                if (!player.hasPermission("meowtrashcan.reload")) {
+                    player.sendMessage(messages.get("no_permission"));
+                    return true;
+                }
+                reloadConfig();
+                loadMessages();
+                saveItemsToStorage();
+                player.sendMessage(messages.get("reloaded"));
+                break;
+            default:
+                player.sendMessage(messages.get("unknown_command"));
+                break;
+        }
+
+        return true;
+    }
 
     private void loadTrashItems() {
         allTrashItems.clear();
