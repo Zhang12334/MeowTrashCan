@@ -7,7 +7,7 @@ description: MeowTrashCan - 支持翻垃圾的跨服垃圾桶插件
 commands:
   meowtrashcan:
     description: MeowTrashCan主命令
-    usage: /<command> <throw|flip|reload>
+    usage: /<command> <throw|dig|reload>
     aliases:
       - mtc
 
@@ -15,7 +15,7 @@ permissions:
   meowtrashcan.throw:
     description: Permission to throw items into the trash bin.
     default: true
-  meowtrashcan.flip:
+  meowtrashcan.dig:
     description: Permission to flip through trash.
     default: true
   meowtrashcan.reload:

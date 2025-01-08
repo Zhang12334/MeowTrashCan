@@ -14,11 +14,14 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.*;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class MeowTrashCan extends JavaPlugin implements Listener {
 
@@ -369,10 +372,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         String language = getConfig().getString("language", "zh_cn");
         if (language.equalsIgnoreCase("en")) {//英文消息
             messages.put("only_players", ChatColor.RED + "Only players can use this command.");
-            messages.put("usage", ChatColor.RED + "Usage: /meowtrashcan <throw|flip|reload>");
+            messages.put("usage", ChatColor.RED + "Usage: /mtc <throw|dig|reload>");
             messages.put("no_permission", ChatColor.RED + "You don't have permission to perform this action.");
             messages.put("reloaded", ChatColor.GREEN + "MeowTrashCan configuration reloaded.");
-            messages.put("unknown_command", ChatColor.RED + "Unknown command. Usage: /meowtrashcan <throw|flip|reload>");
+            messages.put("unknown_command", ChatColor.RED + "Unknown command. Usage: /mtc <throw|dig|reload>");
             messages.put("failed_connect_database", ChatColor.RED + "Could not connect to MySQL database.");
             messages.put("page", "Now page");
             messages.put("trashbin_throw", "Trash Bin - Throw");
@@ -397,10 +400,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
         } else if (language.equalsIgnoreCase("zh_tc")) {//繁体消息
             messages.put("only_players", ChatColor.RED + "只有玩家能使用這個指令!");
-            messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
+            messages.put("usage", ChatColor.RED + "用法：/mtc <throw|dig|reload>");
             messages.put("no_permission", ChatColor.RED + "你沒有權限執行此操作!");
             messages.put("reloaded", ChatColor.GREEN + "MeowTrashCan 配置已重載");
-            messages.put("unknown_command", ChatColor.RED + "未知的指令, 用法：/meowtrashcan <throw|flip|reload>");
+            messages.put("unknown_command", ChatColor.RED + "未知的指令, 用法：/mtc <throw|dig|reload>");
             messages.put("failed_connect_database", ChatColor.RED + "無法連接到MySQL數據庫!");
             messages.put("page", "當前頁數");
             messages.put("trashbin_throw", "丟垃圾");
@@ -425,10 +428,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
         } else if (language.equalsIgnoreCase("zh_cn")) {//简体消息
             messages.put("only_players", ChatColor.RED + "只有玩家可以使用此命令!");
-            messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
+            messages.put("usage", ChatColor.RED + "用法：/mtc <throw|dig|reload>");
             messages.put("no_permission", ChatColor.RED + "你没有权限执行此操作!");
             messages.put("reloaded", ChatColor.GREEN + "MeowTrashCan 配置已重新加载");
-            messages.put("unknown_command", ChatColor.RED + "未知命令, 用法：/meowtrashcan <throw|flip|reload>");
+            messages.put("unknown_command", ChatColor.RED + "未知命令, 用法：/mtc <throw|dig|reload>");
             messages.put("failed_connect_database", ChatColor.RED + "无法连接到MySQL数据库!");
             messages.put("page", "当前页数");
             messages.put("trashbin_throw", "丢垃圾");
