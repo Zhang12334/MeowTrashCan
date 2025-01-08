@@ -12,8 +12,12 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -25,18 +29,19 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     private boolean useMySQL;
     private Connection connection;
     private Map<String, String> messages;
+    private String storageType;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        useMySQL = getConfig().getBoolean("use-mysql", false);
+        storageType = getConfig().getString("storage", "json");
+        useMySQL = storageType.equalsIgnoreCase("mysql");
 
         if (useMySQL) {
             setupMySQL();
         }
 
         loadMessages();
-
         getServer().getPluginManager().registerEvents(this, this);
     }
 
@@ -57,40 +62,21 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         String database = getConfig().getString("mysql.database");
         String username = getConfig().getString("mysql.username");
         String password = getConfig().getString("mysql.password");
-        int maxRetries = getConfig().getInt("mysql.max-retries", 3); // 最大重试次数
-        int retryDelay = getConfig().getInt("mysql.retry-delay", 5000); // 重试延迟时间（单位：毫秒）
 
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                connection = DriverManager.getConnection(
-                        "jdbc:mysql://" + host + ":" + port + "/" + database,
-                        username,
-                        password
-                );
-                connection.createStatement().executeUpdate(
-                        "CREATE TABLE IF NOT EXISTS trash_items (id INT AUTO_INCREMENT PRIMARY KEY, material VARCHAR(255), amount INT)"
-                );
-                getLogger().info("Successfully connected to the MySQL database.");
-                return; // 成功连接后退出方法
-            } catch (SQLException e) {
-                getLogger().severe("Attempt " + attempt + " to connect to the MySQL database failed.");
-                e.printStackTrace();
-
-                if (attempt < maxRetries) {
-                    getLogger().info("Retrying in " + retryDelay / 1000 + " seconds...");
-                    try {
-                        Thread.sleep(retryDelay); // 等待一段时间再重试
-                    } catch (InterruptedException interruptedException) {
-                        interruptedException.printStackTrace();
-                    }
-                } else {
-                    getLogger().severe("Failed to connect to the MySQL database after " + maxRetries + " attempts.");
-                    getLogger().severe(messages.get("failed_connect_database")); // 显示连接失败的消息
-                }
-            }
+        try {
+            connection = DriverManager.getConnection(
+                    "jdbc:mysql://" + host + ":" + port + "/" + database,
+                    username,
+                    password
+            );
+            connection.createStatement().executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS trash_items (id INT AUTO_INCREMENT PRIMARY KEY, material VARCHAR(255), amount INT)"
+            );
+        } catch (SQLException e) {
+            e.printStackTrace();
+            getLogger().severe("Could not connect to MySQL database.");
         }
     }
-
 
     private void loadMessages() {
         messages = new HashMap<>();
@@ -130,26 +116,30 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
     private void openTrashInventory(Player player) {
-        Inventory trashInventory = Bukkit.createInventory(player, 27, ChatColor.GREEN + messages.get("trashbin_throw"));
+        Inventory trashInventory = Bukkit.createInventory(player, 54, ChatColor.GREEN + messages.get("trashbin_throw"));
         trashInventories.put(player.getUniqueId(), trashInventory);
         player.openInventory(trashInventory);
     }
 
     private void openDigInventory(Player player) {
-        Inventory digInventory = Bukkit.createInventory(player, 27, ChatColor.YELLOW + messages.get("trashbin_flip"));
+        Inventory digInventory = Bukkit.createInventory(player, 54, ChatColor.YELLOW + messages.get("trashbin_flip"));
         int totalItems = allTrashItems.size();
 
         if (totalItems > 0) {
-            int randomPage = ThreadLocalRandom.current().nextInt((totalItems + 26) / 27);
-            int startIndex = randomPage * 27;
+            int randomPage = ThreadLocalRandom.current().nextInt((totalItems + 53) / 54); // Use 54 instead of 27
+            int startIndex = randomPage * 54;
 
-            for (int i = 0; i < 27 && startIndex + i < totalItems; i++) {
+            for (int i = 0; i < 54 && startIndex + i < totalItems; i++) {
                 digInventory.setItem(i, allTrashItems.get(startIndex + i));
             }
 
             ItemStack pageIndicator = new ItemStack(Material.PAPER);
-            pageIndicator.getItemMeta().setDisplayName(ChatColor.BLUE + messages.get("page") + (randomPage + 1));
-            digInventory.setItem(26, pageIndicator);
+            ItemMeta meta = pageIndicator.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(ChatColor.BLUE + messages.get("page") + " " + (randomPage + 1));
+                pageIndicator.setItemMeta(meta);
+            }
+            digInventory.setItem(53, pageIndicator); // Update to place page indicator in last slot
         }
 
         player.openInventory(digInventory);
@@ -162,10 +152,12 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
         if (trashInventories.containsKey(player.getUniqueId()) && closedInventory.equals(trashInventories.get(player.getUniqueId()))) {
             for (ItemStack item : closedInventory.getContents()) {
-                if (item != null) {
+                if (item != null && item.getType() != Material.PAPER) { // Prevent paper item from being added
                     allTrashItems.add(item);
                     if (useMySQL) {
                         saveItemToDatabase(item);
+                    } else {
+                        saveItemToJson(item);
                     }
                 }
             }
@@ -175,8 +167,15 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getView().getTitle().equals(ChatColor.YELLOW + "Dig Trash")) {
+        if (event.getView().getTitle().equals(ChatColor.YELLOW + messages.get("trashbin_flip"))) {
             event.setCancelled(true);
+            ItemStack clickedItem = event.getCurrentItem();
+
+            if (clickedItem != null && clickedItem.getType() != Material.AIR) {
+                event.getWhoClicked().getInventory().addItem(clickedItem);
+                // Remove the item from the trash bin
+                event.getView().getTopInventory().remove(clickedItem);
+            }
         }
     }
 
@@ -188,6 +187,21 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             statement.setInt(2, item.getAmount());
             statement.executeUpdate();
         } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveItemToJson(ItemStack item) {
+        try {
+            File file = new File(getDataFolder(), "trash_items.json");
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+
+            FileWriter writer = new FileWriter(file, true);
+            writer.write(item.getType().toString() + "," + item.getAmount() + "\n");
+            writer.close();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
