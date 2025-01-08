@@ -4,6 +4,12 @@
 # Now support: zh_cn / en / zh_tc
 language: zh_cn
 
+# 必选项，存储类型设置
+# 默认为json，可选项：json / mysql
+# Required, storage type settings
+# Default is json, optional: json / mysql
+storage: json
+
 # MySQL数据库设置
 # MySQL database settings
 mysql:
