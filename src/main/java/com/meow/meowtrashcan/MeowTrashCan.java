@@ -391,7 +391,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("startupMessage", "MeowTrashCan has loaded!");
             messages.put("shutdownMessage", "MeowTrashCan has been unloaded!");
             messages.put("nowusingversionMessage", "Currently using version:");
-            messages.put("checkingupdateMessage", "Checking for updates...");
+            messages.put("checkingUpdateMessage", "Checking for updates...");
             messages.put("checkfailedMessage", "Failed to check for updates. Please check your network connection!");
             messages.put("updateavailableMessage", "New version available:");
             messages.put("updateurlMessage", "New version download URL:");
@@ -419,7 +419,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("startupMessage", "MeowTrashCan 已加載!");
             messages.put("shutdownMessage", "MeowTrashCan 已卸載!");
             messages.put("nowusingversionMessage", "當前使用版本:");
-            messages.put("checkingupdateMessage", "正在檢查更新...");
+            messages.put("checkingUpdateMessage", "正在檢查更新...");
             messages.put("checkfailedMessage", "檢查更新失敗，請檢查您的網絡狀況!");
             messages.put("updateavailableMessage", "發現新版本:");
             messages.put("updateurlMessage", "新版本下載地址:");
@@ -447,7 +447,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("startupMessage", "MeowTrashCan 已加载!");
             messages.put("shutdownMessage", "MeowTrashCan 已卸载!");
             messages.put("nowusingversionMessage", "当前使用版本:");
-            messages.put("checkingupdateMessage", "正在检查更新...");
+            messages.put("checkingUpdateMessage", "正在检查更新...");
             messages.put("checkfailedMessage", "检查更新失败，请检查你的网络状况!");
             messages.put("updateavailableMessage", "发现新版本:");
             messages.put("updateurlMessage", "新版本下载地址:");
