@@ -254,6 +254,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("page", "Now page");
             messages.put("trashbin_throw", "Trash Bin - Throw");
             messages.put("trashbin_flip", "Trash Bin - Dig");
+            messages.put("inventory_full", ChatColor.RED + "Your inventory is full, you cannot pick up items!");
         } else if (language.equalsIgnoreCase("zh_tc")) {//繁体消息
             messages.put("only_players", ChatColor.RED + "只有玩家能使用這個指令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -264,6 +265,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("page", "當前頁數");
             messages.put("trashbin_throw", "丟垃圾");
             messages.put("trashbin_flip", "翻垃圾");
+            messages.put("inventory_full", ChatColor.RED + "你的背包已滿, 無法拾取物品!");
         } else if (language.equalsIgnoreCase("zh_cn")) {//简体消息
             messages.put("only_players", ChatColor.RED + "只有玩家可以使用此命令!");
             messages.put("usage", ChatColor.RED + "用法：/meowtrashcan <throw|flip|reload>");
@@ -274,6 +276,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             messages.put("page", "当前页数");
             messages.put("trashbin_throw", "丢垃圾");
             messages.put("trashbin_flip", "翻垃圾");
+            messages.put("inventory_full", ChatColor.RED + "你的背包已满, 无法拾取物品!");
         }
     }
 
@@ -287,46 +290,61 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         Inventory digInventory = Bukkit.createInventory(player, 54, ChatColor.YELLOW + messages.get("trashbin_flip"));
 
         int totalItems = allTrashItems.size();
-        int maxPages = (totalItems + 53) / 54;
-        page = Math.min(Math.max(page, 0), maxPages - 1); // 限制页面范围
+        
+        if (totalItems == 0) {
+            // 如果垃圾桶为空，显示空的界面
+            ItemStack emptyMessage = new ItemStack(Material.BARRIER);
+            ItemMeta emptyMeta = emptyMessage.getItemMeta();
+            if (emptyMeta != null) {
+                emptyMeta.setDisplayName(ChatColor.RED + "垃圾桶为空！");
+            }
+            emptyMessage.setItemMeta(emptyMeta);
+            for (int i = 0; i < 54; i++) {
+                digInventory.setItem(i, emptyMessage);
+            }
+        } else {
+            int maxPages = (totalItems + 53) / 54;
+            page = Math.min(Math.max(page, 0), maxPages - 1); // 限制页面范围
 
-        int startIndex = page * 45; // 前45个用于物品展示
-        for (int i = 0; i < 45 && startIndex + i < totalItems; i++) {
-            digInventory.setItem(i, allTrashItems.get(startIndex + i));
+            int startIndex = page * 45; // 前45个用于物品展示
+            for (int i = 0; i < 45 && startIndex + i < totalItems; i++) {
+                digInventory.setItem(i, allTrashItems.get(startIndex + i));
+            }
+
+            // 设置底部灰色玻璃片
+            ItemStack grayPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+            ItemMeta grayMeta = grayPane.getItemMeta();
+            if (grayMeta != null) grayMeta.setDisplayName(" ");
+            grayPane.setItemMeta(grayMeta);
+
+            for (int i = 45; i < 54; i++) {
+                digInventory.setItem(i, grayPane);
+            }
+
+            // 添加翻页按钮
+            ItemStack previousButton = new ItemStack(page > 0 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
+            ItemMeta previousMeta = previousButton.getItemMeta();
+            if (previousMeta != null) previousMeta.setDisplayName(ChatColor.GOLD + (page > 0 ? "上一页" : "无上一页"));
+            previousButton.setItemMeta(previousMeta);
+            digInventory.setItem(45, previousButton);
+
+            ItemStack nextButton = new ItemStack(page < maxPages - 1 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
+            ItemMeta nextMeta = nextButton.getItemMeta();
+            if (nextMeta != null) nextMeta.setDisplayName(ChatColor.GOLD + (page < maxPages - 1 ? "下一页" : "无下一页"));
+            nextButton.setItemMeta(nextMeta);
+            digInventory.setItem(53, nextButton);
+
+            // 页码指示器
+            ItemStack pageIndicator = new ItemStack(Material.PAPER);
+            ItemMeta pageMeta = pageIndicator.getItemMeta();
+            if (pageMeta != null) pageMeta.setDisplayName(ChatColor.BLUE + messages.get("page") + ": " + (page + 1) + "/" + maxPages);
+            pageIndicator.setItemMeta(pageMeta);
+            digInventory.setItem(49, pageIndicator);
         }
-
-        // 设置底部灰色玻璃片
-        ItemStack grayPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        ItemMeta grayMeta = grayPane.getItemMeta();
-        if (grayMeta != null) grayMeta.setDisplayName(" ");
-        grayPane.setItemMeta(grayMeta);
-
-        for (int i = 45; i < 54; i++) {
-            digInventory.setItem(i, grayPane);
-        }
-
-        // 添加翻页按钮
-        ItemStack previousButton = new ItemStack(page > 0 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
-        ItemMeta previousMeta = previousButton.getItemMeta();
-        if (previousMeta != null) previousMeta.setDisplayName(ChatColor.GOLD + (page > 0 ? "上一页" : "无上一页"));
-        previousButton.setItemMeta(previousMeta);
-        digInventory.setItem(45, previousButton);
-
-        ItemStack nextButton = new ItemStack(page < maxPages - 1 ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE);
-        ItemMeta nextMeta = nextButton.getItemMeta();
-        if (nextMeta != null) nextMeta.setDisplayName(ChatColor.GOLD + (page < maxPages - 1 ? "下一页" : "无下一页"));
-        nextButton.setItemMeta(nextMeta);
-        digInventory.setItem(53, nextButton);
-
-        // 页码指示器
-        ItemStack pageIndicator = new ItemStack(Material.PAPER);
-        ItemMeta pageMeta = pageIndicator.getItemMeta();
-        if (pageMeta != null) pageMeta.setDisplayName(ChatColor.BLUE + messages.get("page") + ": " + (page + 1) + "/" + maxPages);
-        pageIndicator.setItemMeta(pageMeta);
-        digInventory.setItem(49, pageIndicator);
 
         player.openInventory(digInventory);
     }
+
 
     private int getCurrentPage(Inventory inventory) {
         ItemStack pageIndicator = inventory.getItem(49);
