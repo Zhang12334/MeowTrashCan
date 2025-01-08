@@ -14,6 +14,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -115,6 +116,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
+
     private void openTrashInventory(Player player) {
         Inventory trashInventory = Bukkit.createInventory(player, 54, ChatColor.GREEN + messages.get("trashbin_throw"));
         trashInventories.put(player.getUniqueId(), trashInventory);
@@ -162,6 +164,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 }
             }
             closedInventory.clear();
+            updateTrashInventories();
         }
     }
 
@@ -175,6 +178,17 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 event.getWhoClicked().getInventory().addItem(clickedItem);
                 // Remove the item from the trash bin
                 event.getView().getTopInventory().remove(clickedItem);
+                updateTrashInventories(); // Update inventory after item removal
+            }
+        }
+    }
+
+    private void updateTrashInventories() {
+        // Update all players with the new trash inventory contents
+        for (UUID playerId : trashInventories.keySet()) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null && player.isOnline()) {
+                openTrashInventory(player); // Reopen trash inventory to update contents
             }
         }
     }
