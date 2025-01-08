@@ -210,6 +210,11 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                     player.getInventory().addItem(clickedItem);
                     inventory.setItem(slot, null); // 移除已取走的物品
                     allTrashItems.remove(clickedItem); // 从垃圾列表中移除
+                    if (useMySQL) {
+                        saveItemToDatabase(item);
+                    } else {
+                        saveItemToJson(item);
+                    }
                 }
             }
         }
