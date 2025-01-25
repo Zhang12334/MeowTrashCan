@@ -255,6 +255,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream)) {
 
+            // 使用 StreamSerializer 序列化 ItemStack
             StreamSerializer.getDefault().serializeItemStack(item, dataOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
             return Base64.getEncoder().encodeToString(byteArray); // 使用 Base64 编码
@@ -280,14 +281,14 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
-
+    // 从数据库或文件加载物品
     private void loadTrashItems() {
         allTrashItems.clear();
 
         if (useMySQL) {
             // 从 MySQL 数据库加载
             try (Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
+                 ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");
                     if (nbtData != null) {
@@ -323,6 +324,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
+    // 保存物品到数据库或文件
     private void saveTrashItems() {
         if (useMySQL) {
             // 保存到 MySQL 数据库
