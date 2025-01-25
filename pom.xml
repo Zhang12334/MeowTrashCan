@@ -19,9 +19,8 @@
 
     <repositories>
         <repository>
-            <id>codemc-repo</id>
-            <url>https://repo.codemc.io/repository/maven-public/</url>
-            <layout>default</layout>
+            <id>dmulloy2-repo</id>
+            <url>https://repo.dmulloy2.net/repository/public/</url>
         </repository>    
         <repository>
             <id>spigot-repo</id>
@@ -41,12 +40,11 @@
             <version>${spigot.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- NBT API 依赖 -->
+        <!-- protocollib依赖 -->
         <dependency>
-            <groupId>de.tr7zw</groupId>
-            <artifactId>item-nbt-api-plugin</artifactId>
-            <version>2.14.1</version>
-            <scope>provided</scope>
+            <groupId>com.comphenix.protocol</groupId>
+            <artifactId>ProtocolLib</artifactId>
+            <version>5.0.0</version>
         </dependency>
         <!-- MySQL 依赖 -->
         <dependency>

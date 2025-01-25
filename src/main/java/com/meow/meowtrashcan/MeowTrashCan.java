@@ -15,6 +15,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import com.comphenix.protocol.wrappers.WrappedNBTCompound;
+import com.comphenix.protocol.wrappers.WrappedNBTTagCompound;
 
 import java.io.*;
 import java.sql.*;
@@ -34,11 +37,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-        if (!NBT.preloadApi()) {
-            getLogger().warning("NBT-API 未正确初始化，插件将被禁用");
-            getPluginLoader().disablePlugin(this);
-            return;
-        }
         // bstats
         int pluginId = 24401;
         Metrics metrics = new Metrics(this, pluginId);
@@ -248,45 +246,31 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
         return true;
     }
-    // 序列化方法：将 Bukkit 的 ItemStack 转换为 JSON 格式的 NBT 数据
+
     private String serializeItemStack(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) {
             return "{}"; // 空物品返回空的 NBT 数据
         }
 
         try {
-            // 将 Bukkit 的 ItemStack 转换为 NMS 的 ItemStack
-            NMSItemStack nmsItem = CraftItemStack.asNMSCopy(item);
-
-            // 创建一个 NBTTagCompound 存储 NBT 数据
-            NBTTagCompound nbtTagCompound = new NBTTagCompound();
-
-            // 将物品写入 NBT 数据
-            nmsItem.save(nbtTagCompound);
-
-            // 返回 NBT 数据的 JSON 字符串
-            return nbtTagCompound.toString();
+            // 使用 ProtocolLib 将物品的 NBT 数据序列化为 JSON 格式
+            WrappedNBTTagCompound nbtTagCompound = WrappedNBTTagCompound.fromItemStack(item);
+            return nbtTagCompound != null ? nbtTagCompound.toString() : "{}";
         } catch (Exception e) {
             e.printStackTrace();
             return "{}"; // 异常时返回空的 NBT 数据
         }
     }
 
-    // 反序列化方法：从 JSON 格式的 NBT 数据创建一个 Bukkit 的 ItemStack
     private ItemStack deserializeItemStack(String nbtData) {
         if (nbtData == null || nbtData.isEmpty()) {
             return new ItemStack(Material.AIR); // 空字符串返回一个默认的空气物品
         }
 
         try {
-            // 创建一个新的 NBTTagCompound 并解析 JSON 数据
-            NBTTagCompound nbtTagCompound = NBTTagCompound.a(nbtData);
-
-            // 将 NBT 数据加载到一个 NMS 的 ItemStack
-            NMSItemStack nmsItem = NMSItemStack.a(nbtTagCompound);
-
-            // 转换回 Bukkit 的 ItemStack 并返回
-            return CraftItemStack.asBukkitCopy(nmsItem);
+            // 使用 ProtocolLib 将 JSON 格式的 NBT 数据解析为物品
+            WrappedNBTTagCompound nbtTagCompound = WrappedNBTTagCompound.fromJson(nbtData);
+            return nbtTagCompound != null ? nbtTagCompound.asCraftItemStack() : new ItemStack(Material.AIR);
         } catch (Exception e) {
             e.printStackTrace();
             return new ItemStack(Material.AIR); // 异常时返回默认的空气物品
@@ -294,7 +278,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
 
-    // 从数据库或文件加载垃圾物品
+
     private void loadTrashItems() {
         allTrashItems.clear();
 
@@ -305,7 +289,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");
                     if (nbtData != null) {
-                        ItemStack item = deserializeItemStack(nbtData); // 使用 NMS 反序列化
+                        ItemStack item = deserializeItemStack(nbtData); // 使用 ProtocolLib 反序列化
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -324,7 +308,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                         String[] parts = line.split(",", 2); // 假设类型和 NBT 数据用逗号分隔
                         if (parts.length == 2) {
                             String nbtData = parts[1]; // 获取 NBT 数据部分
-                            ItemStack item = deserializeItemStack(nbtData); // 使用 NMS 反序列化
+                            ItemStack item = deserializeItemStack(nbtData); // 使用 ProtocolLib 反序列化
                             if (item != null) {
                                 allTrashItems.add(item);
                             }
@@ -337,7 +321,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
-    // 保存垃圾物品到数据库或文件
     private void saveTrashItems() {
         if (useMySQL) {
             // 保存到 MySQL 数据库
@@ -350,7 +333,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
             try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = serializeItemStack(item); // 使用 NMS 序列化
+                    String nbtData = serializeItemStack(item); // 使用 ProtocolLib 序列化
                     insertStatement.setString(1, nbtData);
                     insertStatement.addBatch();
                 }
@@ -363,7 +346,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             File file = new File(getDataFolder(), "trash_items.json");
             try (FileWriter writer = new FileWriter(file)) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = serializeItemStack(item); // 使用 NMS 序列化
+                    String nbtData = serializeItemStack(item); // 使用 ProtocolLib 序列化
                     writer.write(item.getType().toString() + "," + nbtData + "\n"); // 存储类型和 NBT 数据
                 }
             } catch (IOException e) {
@@ -371,7 +354,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         }
     }
-
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
