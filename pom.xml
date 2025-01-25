@@ -17,12 +17,7 @@
         <spigot.version>1.20.6-R0.1-SNAPSHOT</spigot.version>  <!-- 使用 1.20.6 -->
     </properties>
 
-    <repositories>
-        <!-- CodeMC -->
-        <repository>
-            <id>codemc-repo</id>
-            <url>https://repo.codemc.io/repository/maven-public/</url>
-        </repository>    
+    <repositories>   
         <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/repository/public/</url>
