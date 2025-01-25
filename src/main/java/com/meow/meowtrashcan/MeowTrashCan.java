@@ -17,8 +17,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import com.comphenix.protocol.utility.MinecraftReflection;
 import com.comphenix.protocol.utility.StreamSerializer;
-import com.google.common.io.ByteArrayDataOutput;
-import com.google.common.io.ByteStreams;
 
 import java.io.*;
 import java.sql.*;
@@ -26,6 +24,7 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Base64;
 
 public class MeowTrashCan extends JavaPlugin implements Listener {
 
@@ -249,36 +248,35 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
 
-    private ItemStack deserializeItemStack(byte[] data) {
-        if (data == null || data.length == 0) {
-            return null;
-        }
-        try {
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(data);
-            DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+    // 序列化 ItemStack 到字符串（Base64 编码的字符串）
+    public String serializeItemStack(ItemStack item) {
+        if (item == null) return "";
 
-            // 使用 ProtocolLib 的反序列化方法
-            return StreamSerializer.getDefault().deserializeItemStack(dataInputStream);
-        } catch (Exception e) {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+             DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream)) {
+
+            StreamSerializer.getDefault().serializeItemStack(item, dataOutputStream);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            return Base64.getEncoder().encodeToString(byteArray); // 使用 Base64 编码
+        } catch (IOException e) {
             e.printStackTrace();
-            return null;
+            return "";
         }
     }
 
-    private byte[] serializeItemStack(ItemStack item) {
-        if (item == null) {
-            return new byte[0];
-        }
-        try {
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+    // 从字符串（Base64 编码）反序列化回 ItemStack
+    public ItemStack deserializeItemStack(String serializedItem) {
+        if (serializedItem == null || serializedItem.isEmpty()) return null;
 
-            // 使用 ProtocolLib 的序列化方法
-            StreamSerializer.getDefault().serializeItemStack(item, dataOutputStream);
-            return byteArrayOutputStream.toByteArray();
-        } catch (Exception e) {
+        try {
+            byte[] byteArray = Base64.getDecoder().decode(serializedItem); // 使用 Base64 解码
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
+            DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+
+            return StreamSerializer.getDefault().deserializeItemStack(dataInputStream);
+        } catch (IOException e) {
             e.printStackTrace();
-            return new byte[0];
+            return null;
         }
     }
 
