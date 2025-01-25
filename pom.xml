@@ -14,10 +14,16 @@
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <spigot.version>1.21-R0.1-SNAPSHOT</spigot.version>  <!-- 使用 1.20.1 -->
+        <spigot.version>1.20.6-R0.1-SNAPSHOT</spigot.version>  <!-- 使用 1.20.6 -->
     </properties>
 
     <repositories>
+        <!-- CodeMC -->
+        <repository>
+            <id>codemc-repo</id>
+            <url>https://repo.codemc.io/repository/maven-public/</url>
+            <layout>default</layout>
+        </repository>    
         <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/repository/public/</url>
@@ -29,12 +35,6 @@
     </repositories>
 
     <dependencies>
-        <dependency>
-            <groupId>org.bukkit</groupId>
-            <artifactId>craftbukkit</artifactId>
-            <version>1.20.6-R0.1-SNAPSHOT</version>
-            <scope>provided</scope>
-        </dependency>
         <!-- Spigot API 依赖 -->
         <dependency>
             <groupId>org.spigotmc</groupId>
@@ -49,6 +49,12 @@
             <version>8.0.23</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>de.tr7zw</groupId>
+            <artifactId>item-nbt-api-plugin</artifactId>
+            <version>2.14.1</version>
+            <scope>provided</scope>
+        </dependency>        
     </dependencies>
 
     <build>
