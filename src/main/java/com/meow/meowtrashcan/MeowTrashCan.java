@@ -249,8 +249,45 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
+public void saveTrashItems() {
+    try {
+        String query = "DELETE FROM trash_items";  // 清除表中的旧数据
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.executeUpdate();
+        }
+
+        // 遍历所有的垃圾物品并保存 NBT 数据
+        for (ItemStack item : allTrashItems) {
+            String nbtData = getNBTData(item); // 使用反射获取 NBT 数据
+            try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
+                insertStatement.setString(1, nbtData); // 将 NBT 数据存入数据库
+                insertStatement.executeUpdate();
+            }
+        }
+    } catch (SQLException | ReflectiveOperationException e) {
+        e.printStackTrace();
+    }
+}
+
+    public void loadTrashItems() {
+        allTrashItems.clear();
+        try (Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
+            while (resultSet.next()) {
+                String nbtData = resultSet.getString("nbt_data");
+                ItemStack item = getItemStackFromNBT(nbtData); // 使用反射将 NBT 数据转换为 ItemStack
+                if (item != null) {
+                    allTrashItems.add(item); // 将物品添加到 allTrashItems
+                }
+            }
+        } catch (SQLException | ReflectiveOperationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // 获取 NBT 数据
     private String getNBTData(ItemStack item) throws ReflectiveOperationException {
-        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.v1_20_R4.inventory.CraftItemStack");
         Class<?> NBTTagCompound = Class.forName("net.minecraft.nbt.NBTTagCompound");
         Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
 
@@ -258,11 +295,14 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         Method save = ItemStack.getMethod("save", NBTTagCompound);
 
         Object nmsItem = asNMSCopy.invoke(null, item);
-        return save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance()).toString();
+        Object nbt = save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance());
+
+        return nbt.toString();
     }
 
+    // 从 NBT 数据中恢复 ItemStack
     private ItemStack getItemStackFromNBT(String nbtData) throws ReflectiveOperationException {
-        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.v1_20_R4.inventory.CraftItemStack");
         Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
 
         Method parse = Class.forName("net.minecraft.nbt.MojangsonParser").getMethod("a", String.class);
@@ -273,40 +313,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return (ItemStack) nmsItem;
     }
 
-    public void saveTrashItems() {
-        try {
-            String query = "DELETE FROM trash_items";  // 清除表中的旧数据
-            try (PreparedStatement statement = connection.prepareStatement(query)) {
-                statement.executeUpdate();
-            }
-
-            for (ItemStack item : allTrashItems) {
-                String nbtData = getNBTData(item);
-                try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
-                    insertStatement.setString(1, nbtData);
-                    insertStatement.executeUpdate();
-                }
-            }
-        } catch (SQLException | ReflectiveOperationException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void loadTrashItems() {
-        allTrashItems.clear();
-        try (Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
-            while (resultSet.next()) {
-                String nbtData = resultSet.getString("nbt_data");
-                ItemStack item = getItemStackFromNBT(nbtData);
-                if (item != null) {
-                    allTrashItems.add(item);
-                }
-            }
-        } catch (SQLException | ReflectiveOperationException e) {
-            e.printStackTrace();
-        }
-    }
 
 
     @EventHandler
