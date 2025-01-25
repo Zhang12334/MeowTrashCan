@@ -251,29 +251,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
 
 
-    // 序列化 ItemStack 到 Base64 字符串
-    public static String serializeItemStack(ItemStack item) {
-        if (item == null) return "";
-
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return "";
-
-        // 获取 NBT 数据的字符串表示
-        String nbtData = meta.getAsString();
-
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-             ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)) {
-
-            // 将 ItemStack 写入流中
-            objectOutputStream.writeObject(item);
-            byte[] byteArray = byteArrayOutputStream.toByteArray();
-            return Base64.getEncoder().encodeToString(byteArray) + "|" + nbtData; // 连接 Base64 编码和 NBT 数据
-        } catch (IOException e) {
-            e.printStackTrace();
-            return "";
-        }
-    }
-
     // 反序列化 Base64 字符串到 ItemStack
     public static ItemStack deserializeItemStack(String serializedItem) {
         if (serializedItem == null || serializedItem.isEmpty()) return null;
@@ -293,7 +270,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 ItemMeta meta = item.getItemMeta();
                 if (meta != null) {
                     // 设置 NBT 数据
-                    meta.setAsString(nbtData);
+                    PersistentDataContainer container = meta.getPersistentDataContainer();
+                    container.set(new NamespacedKey("meow", "nbt"), PersistentDataType.STRING, nbtData);
                     item.setItemMeta(meta);
                 }
             }
@@ -304,6 +282,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
+    // 加载垃圾桶中的物品
     public void loadTrashItems() {
         allTrashItems.clear();
 
@@ -313,7 +292,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");
                     if (nbtData != null) {
-                        ItemStack item = ItemStackSerializer.deserializeItemStack(nbtData);
+                        ItemStack item = MeowTrashCanCore.deserializeItemStack(nbtData);
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -328,7 +307,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        ItemStack item = ItemStackSerializer.deserializeItemStack(line);
+                        ItemStack item = MeowTrashCanCore.deserializeItemStack(line);
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -340,6 +319,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
+    // 保存垃圾桶中的物品
     public void saveTrashItems() {
         if (useMySQL) {
             try (PreparedStatement clearStatement = connection.prepareStatement("DELETE FROM trash_items")) {
@@ -351,7 +331,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
             try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = ItemStackSerializer.serializeItemStack(item);
+                    String nbtData = MeowTrashCanCore.serializeItemStack(item);
                     insertStatement.setString(1, nbtData);
                     insertStatement.addBatch();
                 }
@@ -363,7 +343,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             File file = new File("trash_items.json");
             try (FileWriter writer = new FileWriter(file)) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = ItemStackSerializer.serializeItemStack(item);
+                    String nbtData = MeowTrashCanCore.serializeItemStack(item);
                     writer.write(nbtData + "\n");
                 }
             } catch (IOException e) {
