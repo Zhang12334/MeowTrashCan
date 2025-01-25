@@ -18,7 +18,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
 
-
 import java.io.*;
 import java.sql.*;
 import java.util.*;
@@ -251,15 +250,16 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
 
+
     // 序列化 ItemStack 到 Base64 字符串
     public static String serializeItemStack(ItemStack item) {
         if (item == null) return "";
 
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-             DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream)) {
+             ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)) {
 
-            // 使用 NBT 将 ItemStack 序列化
-            item.serialize(dataOutputStream);
+            // 将 ItemStack 写入到流中
+            objectOutputStream.writeObject(item);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
             return Base64.getEncoder().encodeToString(byteArray); // Base64 编码
         } catch (IOException e) {
@@ -275,11 +275,11 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         try {
             byte[] byteArray = Base64.getDecoder().decode(serializedItem); // Base64 解码
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
-            DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+            ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
 
-            ItemStack item = ItemStack.deserialize(dataInputStream); // 使用 deserialize 恢复 ItemStack
-            return item;
-        } catch (IOException e) {
+            // 读取 ItemStack 对象
+            return (ItemStack) objectInputStream.readObject();
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
             return null;
         }
