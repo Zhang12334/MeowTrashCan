@@ -15,8 +15,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import com.comphenix.protocol.utility.MinecraftReflection;
-import com.comphenix.protocol.utility.StreamSerializer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.NamespacedKey;
+
 
 import java.io.*;
 import java.sql.*;
@@ -248,15 +249,34 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
 
+    // 从字符串（Base64 编码）反序列化回 ItemStack
+    public static ItemStack deserializeItemStack(String serializedItem) {
+        if (serializedItem == null || serializedItem.isEmpty()) return null;
+
+        try {
+            byte[] byteArray = Base64.getDecoder().decode(serializedItem); // 使用 Base64 解码
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
+            DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+
+            // 恢复 ItemStack
+            ItemStack item = new ItemStack(Material.AIR); // 初始化为一个空的 ItemStack
+            item.load(dataInputStream); // Spigot提供的load方法
+            return item;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     // 序列化 ItemStack 到字符串（Base64 编码的字符串）
-    public String serializeItemStack(ItemStack item) {
+    public static String serializeItemStack(ItemStack item) {
         if (item == null) return "";
 
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream)) {
 
-            // 使用物品的 NBT 数据进行序列化
-            item.serialize(dataOutputStream);
+            // 保存 ItemStack 的类型和数据
+            item.save(dataOutputStream);  // Spigot提供的save方法
             byte[] byteArray = byteArrayOutputStream.toByteArray();
             return Base64.getEncoder().encodeToString(byteArray); // 使用 Base64 编码
         } catch (IOException e) {
@@ -266,7 +286,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
     // 从字符串（Base64 编码）反序列化回 ItemStack
-    public ItemStack deserializeItemStack(String serializedItem) {
+    public static ItemStack deserializeItemStack(String serializedItem) {
         if (serializedItem == null || serializedItem.isEmpty()) return null;
 
         try {
@@ -274,16 +294,17 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
             DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
 
-            // 反序列化 ItemStack
-            return ItemStack.deserialize(dataInputStream);
+            // 恢复 ItemStack
+            ItemStack item = new ItemStack(Material.AIR); // 初始化为一个空的 ItemStack
+            item.load(dataInputStream); // Spigot提供的load方法
+            return item;
         } catch (IOException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    // 从数据库或文件加载物品
-    private void loadTrashItems() {
+     public void loadTrashItems() {
         allTrashItems.clear();
 
         if (useMySQL) {
@@ -293,7 +314,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");
                     if (nbtData != null) {
-                        ItemStack item = deserializeItemStack(nbtData); // 使用 ProtocolLib 反序列化
+                        ItemStack item = ItemStackDeserializer.deserializeItemStack(nbtData); // 使用自定义反序列化方法
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -304,7 +325,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         } else {
             // 从 JSON 文件加载
-            File file = new File(getDataFolder(), "trash_items.json");
+            File file = new File("trash_items.json");
             if (file.exists()) {
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                     String line;
@@ -312,7 +333,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                         String[] parts = line.split(",", 2); // 假设类型和 NBT 数据用逗号分隔
                         if (parts.length == 2) {
                             String nbtData = parts[1]; // 获取 NBT 数据部分
-                            ItemStack item = deserializeItemStack(nbtData); // 使用 ProtocolLib 反序列化
+                            ItemStack item = ItemStackDeserializer.deserializeItemStack(nbtData); // 使用自定义反序列化方法
                             if (item != null) {
                                 allTrashItems.add(item);
                             }
@@ -325,8 +346,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
-    // 保存物品到数据库或文件
-    private void saveTrashItems() {
+    public void saveTrashItems() {
         if (useMySQL) {
             // 保存到 MySQL 数据库
             try (PreparedStatement clearStatement = connection.prepareStatement("DELETE FROM trash_items")) {
@@ -338,7 +358,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
             try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = serializeItemStack(item); // 使用 ProtocolLib 序列化
+                    String nbtData = ItemStackSerializer.serializeItemStack(item); // 使用自定义序列化方法
                     insertStatement.setString(1, nbtData);
                     insertStatement.addBatch();
                 }
@@ -348,17 +368,17 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         } else {
             // 保存到 JSON 文件
-            File file = new File(getDataFolder(), "trash_items.json");
+            File file = new File("trash_items.json");
             try (FileWriter writer = new FileWriter(file)) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = serializeItemStack(item); // 使用 ProtocolLib 序列化
+                    String nbtData = ItemStackSerializer.serializeItemStack(item); // 使用自定义序列化方法
                     writer.write(item.getType().toString() + "," + nbtData + "\n"); // 存储类型和 NBT 数据
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-    }
+    }       
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {

@@ -19,10 +19,6 @@
 
     <repositories>
         <repository>
-            <id>dmulloy2-repo</id>
-            <url>https://repo.dmulloy2.net/repository/public/</url>
-        </repository>    
-        <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/repository/public/</url>
         </repository>
@@ -39,12 +35,6 @@
             <artifactId>spigot-api</artifactId>
             <version>${spigot.version}</version>
             <scope>provided</scope>
-        </dependency>
-        <!-- protocollib依赖 -->
-        <dependency>
-            <groupId>com.comphenix.protocol</groupId>
-            <artifactId>ProtocolLib</artifactId>
-            <version>4.7.0</version>
         </dependency>
         <!-- MySQL 依赖 -->
         <dependency>
