@@ -259,14 +259,15 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         if (item == null) return "";
 
         // 使用 NBTAPI 读取物品的 NBT 数据
-        return NBT.get(item, nbt -> nbt.toString());
+        return NBTItem.convertItemtoNBT(item).toString();
     }
 
     public static org.bukkit.inventory.ItemStack deserializeItemStack(String serializedItem) {
         if (serializedItem == null || serializedItem.isEmpty()) return null;
 
         // 使用 NBTAPI 将 JSON 格式的字符串解析为物品
-        return NBT.parseNBT(serializedItem).toItem();
+        NBTContainer nbtContainer = new NBTContainer(serializedItem);
+        return nbtContainer.getItemStack();
     }
 
     public void loadTrashItems() {
@@ -277,7 +278,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");
-                    org.bukkit.inventory.ItemStack item = ItemStackSerializer.deserializeItemStack(nbtData);
+                    org.bukkit.inventory.ItemStack item = deserializeItemStack(nbtData);
                     if (item != null) {
                         allTrashItems.add(item);
                     }
@@ -289,10 +290,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             File file = new File("trash_items.json");
             if (file.exists()) {
                 try {
-                    // 直接使用 NBTAPI 加载 JSON 文件
-                    ReadWriteNBT nbt = NBT.readFile(file);
+                    // 使用 NBTAPI 加载 JSON 文件
+                    NBTContainer nbt = new NBTContainer(NBTFileUtils.readNBTFile(file));
                     nbt.getCompoundList("items").forEach(itemNBT -> {
-                        org.bukkit.inventory.ItemStack item = itemNBT.toItem();
+                        org.bukkit.inventory.ItemStack item = itemNBT.getItemStack();
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -315,7 +316,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
             try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
                 for (org.bukkit.inventory.ItemStack item : allTrashItems) {
-                    String nbtData = ItemStackSerializer.serializeItemStack(item);
+                    String nbtData = serializeItemStack(item);
                     insertStatement.setString(1, nbtData);
                     insertStatement.addBatch();
                 }
@@ -327,17 +328,18 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             File file = new File("trash_items.json");
             try {
                 // 使用 NBTAPI 保存为 JSON 文件
-                ReadWriteNBT nbt = NBT.createNBTObject();
-                ReadWriteNBTCompoundList itemList = nbt.getCompoundList("items");
+                NBTContainer nbt = new NBTContainer();
+                NBTCompoundList itemList = nbt.getCompoundList("items");
                 for (org.bukkit.inventory.ItemStack item : allTrashItems) {
-                    itemList.addCompound(NBT.get(item, ReadWriteNBT::copy));
+                    itemList.addCompound(NBTItem.convertItemtoNBT(item));
                 }
-                NBT.writeFile(file, nbt);
+                NBTFileUtils.writeNBTFile(file, nbt);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
+
 
 
     @EventHandler
