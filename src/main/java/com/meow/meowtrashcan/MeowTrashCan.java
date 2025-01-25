@@ -37,7 +37,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     private String storageType;
 
     @Override
-    public void onEnable() { 
+    public void onEnable() {
+ 
         // bstats
         int pluginId = 24401;
         Metrics metrics = new Metrics(this, pluginId);
@@ -248,7 +249,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
-    // 保存垃圾物品
     public void saveTrashItems() {
         if (useMySQL) {
             try (PreparedStatement clearStatement = connection.prepareStatement("DELETE FROM trash_items")) {
@@ -260,9 +260,23 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
             try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = serializeItemStack(item);  // 使用序列化函数
-                    insertStatement.setString(1, nbtData);
-                    insertStatement.addBatch();
+                    try {
+                        // 使用反射转换为 NMS ItemStack
+                        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+                        Class<?> NBTTagCompound = Class.forName("net.minecraft.nbt.NBTTagCompound");
+                        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
+
+                        Method asNMSCopy = CraftItemStack.getMethod("asNMSCopy", ItemStack.class);
+                        Method save = ItemStack.getMethod("save", NBTTagCompound);
+
+                        Object nmsItem = asNMSCopy.invoke(null, item);
+                        String nbtData = save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance()).toString();
+
+                        insertStatement.setString(1, nbtData);
+                        insertStatement.addBatch();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
                 insertStatement.executeBatch();
             } catch (SQLException e) {
@@ -273,8 +287,24 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             try {
                 NBTContainer nbt = new NBTContainer();
                 NBTCompoundList itemList = nbt.getCompoundList("items");
+
                 for (ItemStack item : allTrashItems) {
-                    itemList.addCompound(serializeItemStack(item)); // 使用序列化函数
+                    try {
+                        // 使用反射转换为 NMS ItemStack
+                        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+                        Class<?> NBTTagCompound = Class.forName("net.minecraft.nbt.NBTTagCompound");
+                        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
+
+                        Method asNMSCopy = CraftItemStack.getMethod("asNMSCopy", ItemStack.class);
+                        Method save = ItemStack.getMethod("save", NBTTagCompound);
+
+                        Object nmsItem = asNMSCopy.invoke(null, item);
+                        String nbtData = save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance()).toString();
+
+                        itemList.addCompound(nbtData); // 使用序列化函数
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
                 NBTFileUtils.writeNBTFile(file, nbt);
             } catch (IOException e) {
@@ -283,7 +313,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
-    // 加载垃圾物品
     public void loadTrashItems() {
         allTrashItems.clear();
 
@@ -292,9 +321,23 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");
-                    ItemStack item = deserializeItemStack(nbtData);  // 使用反序列化函数
-                    if (item != null) {
-                        allTrashItems.add(item);
+                    try {
+                        // 使用反射将 NBT 数据解析成 ItemStack
+                        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+                        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
+
+                        Method parse = Class.forName("net.minecraft.nbt.MojangsonParser").getMethod("a", String.class);
+                        Method createStack = ItemStack.getMethod("a", NBTTagCompound.class);
+                        Method asBukkitCopy = CraftItemStack.getMethod("asBukkitCopy", ItemStack.class);
+
+                        Object nmsItem = asBukkitCopy.invoke(null, createStack.invoke(null, parse.invoke(null, nbtData)));
+                        ItemStack item = (ItemStack) nmsItem;
+
+                        if (item != null) {
+                            allTrashItems.add(item);
+                        }
+                    } catch (Throwable e) {
+                        e.printStackTrace();
                     }
                 }
             } catch (SQLException e) {
@@ -306,9 +349,24 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 try {
                     NBTContainer nbt = new NBTContainer(NBTFileUtils.readNBTFile(file));
                     nbt.getCompoundList("items").forEach(itemNBT -> {
-                        ItemStack item = deserializeItemStack(itemNBT.toString());  // 使用反序列化函数
-                        if (item != null) {
-                            allTrashItems.add(item);
+                        String nbtData = itemNBT.toString();
+                        try {
+                            // 使用反射将 NBT 数据解析成 ItemStack
+                            Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+                            Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
+
+                            Method parse = Class.forName("net.minecraft.nbt.MojangsonParser").getMethod("a", String.class);
+                            Method createStack = ItemStack.getMethod("a", NBTTagCompound.class);
+                            Method asBukkitCopy = CraftItemStack.getMethod("asBukkitCopy", ItemStack.class);
+
+                            Object nmsItem = asBukkitCopy.invoke(null, createStack.invoke(null, parse.invoke(null, nbtData)));
+                            ItemStack item = (ItemStack) nmsItem;
+
+                            if (item != null) {
+                                allTrashItems.add(item);
+                            }
+                        } catch (Throwable e) {
+                            e.printStackTrace();
                         }
                     });
                 } catch (IOException e) {
@@ -317,6 +375,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         }
     }
+
 
     // 设置自定义 NBT 标签
     public void setCustomNBT(ItemStack item, String key, String value) {
