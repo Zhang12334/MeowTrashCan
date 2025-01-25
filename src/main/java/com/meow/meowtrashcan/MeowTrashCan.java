@@ -15,12 +15,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.NamespacedKey;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.chat.Component;
-import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
 
 import java.io.*;
 import java.sql.*;
