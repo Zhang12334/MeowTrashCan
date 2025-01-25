@@ -252,13 +252,20 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
     private String serializeItemStack(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) {
-            return "";
+            return "{}"; // 空物品返回一个有效的空NBT数据对象
         }
 
         // 使用NBTAPI序列化物品
         NBTItem nbtItem = new NBTItem(item);
-        return nbtItem.toString();  // 返回NBT数据的字符串表示
+        
+        // 检查是否能成功序列化，避免null或不完整的NBT数据
+        if (nbtItem.hasKey("Items")) {
+            return nbtItem.toString();  // 返回有效的NBT数据字符串
+        } else {
+            return "{}";  // 如果没有正确序列化，返回空的NBT数据
+        }
     }
+
 
     private ItemStack deserializeItemStack(String nbtData) {
         if (nbtData == null || nbtData.isEmpty()) {
