@@ -18,7 +18,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
 import java.lang.reflect.Method;
-import net.minecraft.nbt.NBTTagCompound;
 import java.lang.reflect.InvocationTargetException;
 
 
