@@ -15,7 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import net.minecraft.nbt.NBTTagCompound;
+import de.tr7zw.nbtapi.NBTItem;
 
 import java.io.*;
 import java.sql.*;
@@ -249,10 +249,9 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             return "";
         }
 
-        // 使用NBT API序列化物品
-        NBTTagCompound nbt = new NBTTagCompound();
-        item.save(nbt);  // 保存ItemStack到NBT
-        return nbt.toString();  // 返回NBT数据的字符串表示
+        // 使用NBTAPI序列化物品
+        NBTItem nbtItem = new NBTItem(item);
+        return nbtItem.toString();  // 返回NBT数据的字符串表示
     }
 
     private ItemStack deserializeItemStack(String nbtData) {
@@ -261,16 +260,14 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
 
         try {
-            // 解析NBT字符串并生成ItemStack
-            NBTTagCompound nbt = NBTTagCompound.fromString(nbtData);
-            ItemStack item = ItemStack.fromNMS(nbt);
-            return item;
+            // 使用NBTAPI解析NBT字符串并生成ItemStack
+            NBTItem nbtItem = new NBTItem(nbtData);  // 解析NBT字符串
+            return nbtItem.getItem();  // 获取反序列化后的ItemStack
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
-
     private void loadTrashItems() {
         allTrashItems.clear();
         if (useMySQL) {
@@ -279,7 +276,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");  // 从数据库获取NBT数据
                     if (nbtData != null) {
-                        ItemStack item = deserializeItemStack(nbtData);  // 反序列化ItemStack
+                        ItemStack item = deserializeItemStack(nbtData);  // 使用NBTAPI反序列化ItemStack
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -296,7 +293,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                     while ((line = reader.readLine()) != null) {
                         String[] parts = line.split(",", 2);  // 假设NBT数据是以逗号分隔的第二部分
                         String nbtData = parts[1];  // 获取NBT数据部分
-                        ItemStack item = deserializeItemStack(nbtData);  // 反序列化ItemStack
+                        ItemStack item = deserializeItemStack(nbtData);  // 使用NBTAPI反序列化ItemStack
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -307,7 +304,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         }
     }
-
 
     private void saveTrashItems() {
         if (useMySQL) {
@@ -320,7 +316,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
             try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {  // 只存储NBT数据
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = serializeItemStack(item);  // 序列化ItemStack为NBT字符串
+                    String nbtData = serializeItemStack(item);  // 使用NBTAPI序列化ItemStack为NBT字符串
                     insertStatement.setString(1, nbtData);
                     insertStatement.addBatch();
                 }
@@ -332,7 +328,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             File file = new File(getDataFolder(), "trash_items.json");
             try (FileWriter writer = new FileWriter(file)) {
                 for (ItemStack item : allTrashItems) {
-                    String nbtData = serializeItemStack(item);  // 序列化ItemStack为NBT字符串
+                    String nbtData = serializeItemStack(item);  // 使用NBTAPI序列化ItemStack为NBT字符串
                     writer.write(item.getType().toString() + "," + nbtData + "\n");  // 存储类型和NBT数据
                 }
             } catch (IOException e) {
@@ -340,7 +336,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         }
     }
-
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
