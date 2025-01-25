@@ -249,197 +249,64 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
+    private String getNBTData(ItemStack item) throws ReflectiveOperationException {
+        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+        Class<?> NBTTagCompound = Class.forName("net.minecraft.nbt.NBTTagCompound");
+        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
+
+        Method asNMSCopy = CraftItemStack.getMethod("asNMSCopy", ItemStack.class);
+        Method save = ItemStack.getMethod("save", NBTTagCompound);
+
+        Object nmsItem = asNMSCopy.invoke(null, item);
+        return save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance()).toString();
+    }
+
+    private ItemStack getItemStackFromNBT(String nbtData) throws ReflectiveOperationException {
+        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
+        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
+
+        Method parse = Class.forName("net.minecraft.nbt.MojangsonParser").getMethod("a", String.class);
+        Method createStack = ItemStack.getMethod("a", NBTTagCompound.class);
+        Method asBukkitCopy = CraftItemStack.getMethod("asBukkitCopy", ItemStack.class);
+
+        Object nmsItem = asBukkitCopy.invoke(null, createStack.invoke(null, parse.invoke(null, nbtData)));
+        return (ItemStack) nmsItem;
+    }
+
     public void saveTrashItems() {
-        if (useMySQL) {
-            try (PreparedStatement clearStatement = connection.prepareStatement("DELETE FROM trash_items")) {
-                clearStatement.executeUpdate();
-            } catch (SQLException e) {
-                e.printStackTrace();
-                return;
+        try {
+            String query = "DELETE FROM trash_items";  // 清除表中的旧数据
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.executeUpdate();
             }
 
-            try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
-                for (ItemStack item : allTrashItems) {
-                    try {
-                        // 使用反射转换为 NMS ItemStack
-                        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
-                        Class<?> NBTTagCompound = Class.forName("net.minecraft.nbt.NBTTagCompound");
-                        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
-
-                        Method asNMSCopy = CraftItemStack.getMethod("asNMSCopy", ItemStack.class);
-                        Method save = ItemStack.getMethod("save", NBTTagCompound);
-
-                        Object nmsItem = asNMSCopy.invoke(null, item);
-                        String nbtData = save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance()).toString();
-
-                        insertStatement.setString(1, nbtData);
-                        insertStatement.addBatch();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+            for (ItemStack item : allTrashItems) {
+                String nbtData = getNBTData(item);
+                try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
+                    insertStatement.setString(1, nbtData);
+                    insertStatement.executeUpdate();
                 }
-                insertStatement.executeBatch();
-            } catch (SQLException e) {
-                e.printStackTrace();
             }
-        } else {
-            File file = new File("trash_items.json");
-            try {
-                NBTContainer nbt = new NBTContainer();
-                NBTCompoundList itemList = nbt.getCompoundList("items");
-
-                for (ItemStack item : allTrashItems) {
-                    try {
-                        // 使用反射转换为 NMS ItemStack
-                        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
-                        Class<?> NBTTagCompound = Class.forName("net.minecraft.nbt.NBTTagCompound");
-                        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
-
-                        Method asNMSCopy = CraftItemStack.getMethod("asNMSCopy", ItemStack.class);
-                        Method save = ItemStack.getMethod("save", NBTTagCompound);
-
-                        Object nmsItem = asNMSCopy.invoke(null, item);
-                        String nbtData = save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance()).toString();
-
-                        itemList.addCompound(nbtData); // 使用序列化函数
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-                NBTFileUtils.writeNBTFile(file, nbt);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        } catch (SQLException | ReflectiveOperationException e) {
+            e.printStackTrace();
         }
     }
 
     public void loadTrashItems() {
         allTrashItems.clear();
-
-        if (useMySQL) {
-            try (Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
-                while (resultSet.next()) {
-                    String nbtData = resultSet.getString("nbt_data");
-                    try {
-                        // 使用反射将 NBT 数据解析成 ItemStack
-                        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
-                        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
-
-                        Method parse = Class.forName("net.minecraft.nbt.MojangsonParser").getMethod("a", String.class);
-                        Method createStack = ItemStack.getMethod("a", NBTTagCompound.class);
-                        Method asBukkitCopy = CraftItemStack.getMethod("asBukkitCopy", ItemStack.class);
-
-                        Object nmsItem = asBukkitCopy.invoke(null, createStack.invoke(null, parse.invoke(null, nbtData)));
-                        ItemStack item = (ItemStack) nmsItem;
-
-                        if (item != null) {
-                            allTrashItems.add(item);
-                        }
-                    } catch (Throwable e) {
-                        e.printStackTrace();
-                    }
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        } else {
-            File file = new File("trash_items.json");
-            if (file.exists()) {
-                try {
-                    NBTContainer nbt = new NBTContainer(NBTFileUtils.readNBTFile(file));
-                    nbt.getCompoundList("items").forEach(itemNBT -> {
-                        String nbtData = itemNBT.toString();
-                        try {
-                            // 使用反射将 NBT 数据解析成 ItemStack
-                            Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.inventory.CraftItemStack");
-                            Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
-
-                            Method parse = Class.forName("net.minecraft.nbt.MojangsonParser").getMethod("a", String.class);
-                            Method createStack = ItemStack.getMethod("a", NBTTagCompound.class);
-                            Method asBukkitCopy = CraftItemStack.getMethod("asBukkitCopy", ItemStack.class);
-
-                            Object nmsItem = asBukkitCopy.invoke(null, createStack.invoke(null, parse.invoke(null, nbtData)));
-                            ItemStack item = (ItemStack) nmsItem;
-
-                            if (item != null) {
-                                allTrashItems.add(item);
-                            }
-                        } catch (Throwable e) {
-                            e.printStackTrace();
-                        }
-                    });
-                } catch (IOException e) {
-                    e.printStackTrace();
+        try (Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
+            while (resultSet.next()) {
+                String nbtData = resultSet.getString("nbt_data");
+                ItemStack item = getItemStackFromNBT(nbtData);
+                if (item != null) {
+                    allTrashItems.add(item);
                 }
             }
-        }
-    }
-
-
-    // 设置自定义 NBT 标签
-    public void setCustomNBT(ItemStack item, String key, String value) {
-        if (item == null || !item.hasItemMeta()) return;
-
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return;
-
-        meta.getPersistentDataContainer().set(new NamespacedKey("meow", key), PersistentDataType.STRING, value);
-        item.setItemMeta(meta);
-    }
-
-    // 获取自定义 NBT 标签
-    public String getCustomNBT(ItemStack item, String key) {
-        if (item == null || !item.hasItemMeta()) return null;
-
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null || !meta.getPersistentDataContainer().has(new NamespacedKey("meow", key), PersistentDataType.STRING)) {
-            return null;
-        }
-        return meta.getPersistentDataContainer().get(new NamespacedKey("meow", key), PersistentDataType.STRING);
-    }
-
-    // 序列化 ItemStack 到字符串
-    public String serializeItemStack(ItemStack item) {
-        if (item == null) return "";
-
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            item.serialize().save(byteArrayOutputStream);
-            byte[] serializedData = byteArrayOutputStream.toByteArray();
-            return java.util.Base64.getEncoder().encodeToString(serializedData);
-        } catch (IOException e) {
+        } catch (SQLException | ReflectiveOperationException e) {
             e.printStackTrace();
-            return "";
         }
     }
-
-    // 反序列化字符串到 ItemStack
-    public ItemStack deserializeItemStack(String serializedData) {
-        if (serializedData == null || serializedData.isEmpty()) return null;
-
-        try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(java.util.Base64.getDecoder().decode(serializedData))) {
-            ItemStack item = ItemStack.deserialize(byteArrayInputStream);
-            return item;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    // 设置 UUID 给 ItemStack
-    public void setUUID(ItemStack item, UUID uuid) {
-        setCustomNBT(item, "unique_id", uuid.toString());
-    }
-
-    // 获取 ItemStack 的 UUID
-    public UUID getUUID(ItemStack item) {
-        String uuidString = getCustomNBT(item, "unique_id");
-        if (uuidString != null) {
-            return UUID.fromString(uuidString);
-        }
-        return null;
-    }
-
 
 
     @EventHandler
