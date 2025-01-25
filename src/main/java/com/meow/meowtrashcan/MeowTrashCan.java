@@ -248,17 +248,20 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
-    private String serializeItemStack(ItemStack item) {
-        if (item == null) {
-            return "{}";
+
+    private ItemStack deserializeItemStack(byte[] data) {
+        if (data == null || data.length == 0) {
+            return null;
         }
         try {
-            ByteArrayDataOutput output = ByteStreams.newDataOutput();
-            StreamSerializer.getDefault().serializeItemStack(item, output);
-            return output.toString();
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(data);
+            DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+
+            // 使用 ProtocolLib 的反序列化方法
+            return StreamSerializer.getDefault().deserializeItemStack(dataInputStream);
         } catch (Exception e) {
             e.printStackTrace();
-            return "{}";
+            return null;
         }
     }
 
