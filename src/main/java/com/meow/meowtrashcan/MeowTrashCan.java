@@ -16,6 +16,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import de.tr7zw.nbtapi.NBTItem;
+import de.tr7zw.nbtapi.NBT;
 
 import java.io.*;
 import java.sql.*;
@@ -265,14 +266,16 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
 
         try {
-            // 使用NBTAPI解析NBT字符串并生成ItemStack
-            NBTItem nbtItem = new NBTItem(nbtData);  // 解析NBT字符串
+            // 创建NBTItem对象并从字符串中加载数据
+            NBTItem nbtItem = new NBTItem();
+            nbtItem.load(nbtData);  // 使用load方法加载NBT字符串
             return nbtItem.getItem();  // 获取反序列化后的ItemStack
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
+
     private void loadTrashItems() {
         allTrashItems.clear();
         if (useMySQL) {
