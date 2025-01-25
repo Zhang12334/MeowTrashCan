@@ -237,17 +237,45 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
         return true;
     }
+    private String serializeItemStack(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return "";
+        }
+
+        // 使用NBT API序列化物品
+        NBTTagCompound nbt = new NBTTagCompound();
+        item.save(nbt);  // 保存ItemStack到NBT
+        return nbt.toString();  // 返回NBT数据的字符串表示
+    }
+
+    private ItemStack deserializeItemStack(String nbtData) {
+        if (nbtData == null || nbtData.isEmpty()) {
+            return null;
+        }
+
+        try {
+            // 解析NBT字符串并生成ItemStack
+            NBTTagCompound nbt = NBTTagCompound.fromString(nbtData);
+            ItemStack item = ItemStack.fromNMS(nbt);
+            return item;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
     private void loadTrashItems() {
         allTrashItems.clear();
         if (useMySQL) {
             try (Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery("SELECT material, amount FROM trash_items")) {
+                ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {  // 获取NBT数据
                 while (resultSet.next()) {
-                    Material material = Material.getMaterial(resultSet.getString("material"));
-                    int amount = resultSet.getInt("amount");
-                    if (material != null) {
-                        allTrashItems.add(new ItemStack(material, amount));
+                    String nbtData = resultSet.getString("nbt_data");  // 从数据库获取NBT数据
+                    if (nbtData != null) {
+                        ItemStack item = deserializeItemStack(nbtData);  // 反序列化ItemStack
+                        if (item != null) {
+                            allTrashItems.add(item);
+                        }
                     }
                 }
             } catch (SQLException e) {
@@ -259,19 +287,20 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        String[] parts = line.split(",");
-                        Material material = Material.getMaterial(parts[0]);
-                        int amount = Integer.parseInt(parts[1]);
-                        if (material != null) {
-                            allTrashItems.add(new ItemStack(material, amount));
+                        String[] parts = line.split(",", 2);  // 假设NBT数据是以逗号分隔的第二部分
+                        String nbtData = parts[1];  // 获取NBT数据部分
+                        ItemStack item = deserializeItemStack(nbtData);  // 反序列化ItemStack
+                        if (item != null) {
+                            allTrashItems.add(item);
                         }
                     }
-                } catch (IOException | NumberFormatException e) {
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
-            } 
+            }
         }
     }
+
 
     private void saveTrashItems() {
         if (useMySQL) {
@@ -282,10 +311,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 return;
             }
 
-            try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (material, amount) VALUES (?, ?)")) {
+            try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {  // 只存储NBT数据
                 for (ItemStack item : allTrashItems) {
-                    insertStatement.setString(1, item.getType().toString());
-                    insertStatement.setInt(2, item.getAmount());
+                    String nbtData = serializeItemStack(item);  // 序列化ItemStack为NBT字符串
+                    insertStatement.setString(1, nbtData);
                     insertStatement.addBatch();
                 }
                 insertStatement.executeBatch();
@@ -296,13 +325,15 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             File file = new File(getDataFolder(), "trash_items.json");
             try (FileWriter writer = new FileWriter(file)) {
                 for (ItemStack item : allTrashItems) {
-                    writer.write(item.getType().toString() + "," + item.getAmount() + "\n");
+                    String nbtData = serializeItemStack(item);  // 序列化ItemStack为NBT字符串
+                    writer.write(item.getType().toString() + "," + nbtData + "\n");  // 存储类型和NBT数据
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
+
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
