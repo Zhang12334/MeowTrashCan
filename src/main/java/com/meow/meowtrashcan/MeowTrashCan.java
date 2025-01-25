@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import net.minecraft.nbt.NBTTagCompound;
 
 import java.io.*;
 import java.sql.*;
@@ -170,8 +171,13 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
         try {
             connection = DriverManager.getConnection(url, username, password);
+            
+            // 创建表时添加 nbt_data 字段来存储物品的 NBT 数据
             connection.createStatement().executeUpdate(
-                    "CREATE TABLE IF NOT EXISTS trash_items (id INT AUTO_INCREMENT PRIMARY KEY, material VARCHAR(255), amount INT)"
+                    "CREATE TABLE IF NOT EXISTS trash_items (" +
+                    "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                    "nbt_data TEXT NOT NULL" +  // 使用 TEXT 类型来存储 NBT 数据
+                    ")"
             );
             getLogger().info(messages.get("connect_database_successful"));
         } catch (SQLException e) {
@@ -179,6 +185,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             getLogger().severe(messages.get("failed_connect_database"));
         }
     }
+
 
 
     @Override
