@@ -44,7 +44,7 @@
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
-            <version>5.0.0</version>
+            <version>4.7.0</version>
         </dependency>
         <!-- MySQL 依赖 -->
         <dependency>

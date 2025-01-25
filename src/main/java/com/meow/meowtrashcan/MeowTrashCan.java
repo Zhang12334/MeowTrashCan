@@ -15,9 +15,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import com.comphenix.protocol.wrappers.WrappedChatComponent;
-import com.comphenix.protocol.wrappers.WrappedNBTCompound;
-import com.comphenix.protocol.wrappers.WrappedNBTTagCompound;
+import com.comphenix.protocol.utility.MinecraftReflection;
+import com.comphenix.protocol.utility.StreamSerializer;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 
 import java.io.*;
 import java.sql.*;
@@ -248,35 +249,30 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
     private String serializeItemStack(ItemStack item) {
-        if (item == null || item.getType() == Material.AIR) {
-            return "{}"; // 空物品返回空的 NBT 数据
+        if (item == null) {
+            return "{}";
         }
-
         try {
-            // 使用 ProtocolLib 将物品的 NBT 数据序列化为 JSON 格式
-            WrappedNBTTagCompound nbtTagCompound = WrappedNBTTagCompound.fromItemStack(item);
-            return nbtTagCompound != null ? nbtTagCompound.toString() : "{}";
+            ByteArrayDataOutput output = ByteStreams.newDataOutput();
+            StreamSerializer.getDefault().serializeItemStack(item, output);
+            return output.toString();
         } catch (Exception e) {
             e.printStackTrace();
-            return "{}"; // 异常时返回空的 NBT 数据
+            return "{}";
         }
     }
 
     private ItemStack deserializeItemStack(String nbtData) {
         if (nbtData == null || nbtData.isEmpty()) {
-            return new ItemStack(Material.AIR); // 空字符串返回一个默认的空气物品
+            return null;
         }
-
         try {
-            // 使用 ProtocolLib 将 JSON 格式的 NBT 数据解析为物品
-            WrappedNBTTagCompound nbtTagCompound = WrappedNBTTagCompound.fromJson(nbtData);
-            return nbtTagCompound != null ? nbtTagCompound.asCraftItemStack() : new ItemStack(Material.AIR);
+            return StreamSerializer.getDefault().deserializeItemStack(ByteStreams.newDataInput(nbtData.getBytes()));
         } catch (Exception e) {
             e.printStackTrace();
-            return new ItemStack(Material.AIR); // 异常时返回默认的空气物品
+            return null;
         }
     }
-
 
 
     private void loadTrashItems() {
