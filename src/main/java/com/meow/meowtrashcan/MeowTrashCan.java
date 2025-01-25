@@ -255,13 +255,19 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     public static String serializeItemStack(ItemStack item) {
         if (item == null) return "";
 
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return "";
+
+        // 获取 NBT 数据的字符串表示
+        String nbtData = meta.getAsString();
+
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)) {
 
-            // 将 ItemStack 写入到流中
+            // 将 ItemStack 写入流中
             objectOutputStream.writeObject(item);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
-            return Base64.getEncoder().encodeToString(byteArray); // Base64 编码
+            return Base64.getEncoder().encodeToString(byteArray) + "|" + nbtData; // 连接 Base64 编码和 NBT 数据
         } catch (IOException e) {
             e.printStackTrace();
             return "";
@@ -273,12 +279,25 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         if (serializedItem == null || serializedItem.isEmpty()) return null;
 
         try {
-            byte[] byteArray = Base64.getDecoder().decode(serializedItem); // Base64 解码
+            String[] parts = serializedItem.split("\\|");
+            String base64Data = parts[0];
+            String nbtData = parts.length > 1 ? parts[1] : "";
+
+            byte[] byteArray = Base64.getDecoder().decode(base64Data); // Base64 解码
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
             ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
 
             // 读取 ItemStack 对象
-            return (ItemStack) objectInputStream.readObject();
+            ItemStack item = (ItemStack) objectInputStream.readObject();
+            if (item != null && !nbtData.isEmpty()) {
+                ItemMeta meta = item.getItemMeta();
+                if (meta != null) {
+                    // 设置 NBT 数据
+                    meta.setAsString(nbtData);
+                    item.setItemMeta(meta);
+                }
+            }
+            return item;
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
             return null;
