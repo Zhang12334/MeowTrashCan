@@ -17,6 +17,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.chat.Component;
+import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
 
 import java.io.*;
 import java.sql.*;
@@ -251,48 +255,62 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
 
 
+    public static String serializeItemStack(org.bukkit.inventory.ItemStack item) {
+        if (item == null) return "";
+
+        ItemStack nmsItemStack = CraftItemStack.asNMSCopy(item);  // 将 Bukkit ItemStack 转换为 NMS ItemStack
+        NBTTagCompound nbtTag = new NBTTagCompound();
+        nmsItemStack.save(nbtTag);  // 保存 NMS ItemStack 的 NBT 数据
+
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+             ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)) {
+
+            // 将 NBT 数据序列化到字节流
+            objectOutputStream.writeObject(nbtTag);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+
+            // Base64 编码并返回
+            return Base64.getEncoder().encodeToString(byteArray);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+
     // 反序列化 Base64 字符串到 ItemStack
-    public static ItemStack deserializeItemStack(String serializedItem) {
+    public static org.bukkit.inventory.ItemStack deserializeItemStack(String serializedItem) {
         if (serializedItem == null || serializedItem.isEmpty()) return null;
 
         try {
-            String[] parts = serializedItem.split("\\|");
-            String base64Data = parts[0];
-            String nbtData = parts.length > 1 ? parts[1] : "";
-
-            byte[] byteArray = Base64.getDecoder().decode(base64Data); // Base64 解码
+            byte[] byteArray = Base64.getDecoder().decode(serializedItem);  // Base64 解码
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
             ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
 
-            // 读取 ItemStack 对象
-            ItemStack item = (ItemStack) objectInputStream.readObject();
-            if (item != null && !nbtData.isEmpty()) {
-                ItemMeta meta = item.getItemMeta();
-                if (meta != null) {
-                    // 设置 NBT 数据
-                    PersistentDataContainer container = meta.getPersistentDataContainer();
-                    container.set(new NamespacedKey("meow", "nbt"), PersistentDataType.STRING, nbtData);
-                    item.setItemMeta(meta);
-                }
-            }
-            return item;
+            // 读取 NBT 数据
+            NBTTagCompound nbtTag = (NBTTagCompound) objectInputStream.readObject();
+
+            // 使用 NBT 数据创建 ItemStack
+            ItemStack nmsItemStack = ItemStack.b(nbtTag);  // 将 NBT 数据转回 ItemStack
+
+            return CraftItemStack.asBukkitCopy(nmsItemStack);  // 将 NMS ItemStack 转换为 Bukkit ItemStack
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    // 加载垃圾桶中的物品
+
     public void loadTrashItems() {
         allTrashItems.clear();
 
         if (useMySQL) {
             try (Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
+                ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
                 while (resultSet.next()) {
                     String nbtData = resultSet.getString("nbt_data");
                     if (nbtData != null) {
-                        ItemStack item = MeowTrashCanCore.deserializeItemStack(nbtData);
+                        org.bukkit.inventory.ItemStack item = ItemStackSerializer.deserializeItemStack(nbtData);
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -307,7 +325,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        ItemStack item = MeowTrashCanCore.deserializeItemStack(line);
+                        org.bukkit.inventory.ItemStack item = ItemStackSerializer.deserializeItemStack(line);
                         if (item != null) {
                             allTrashItems.add(item);
                         }
@@ -319,7 +337,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
 
-    // 保存垃圾桶中的物品
     public void saveTrashItems() {
         if (useMySQL) {
             try (PreparedStatement clearStatement = connection.prepareStatement("DELETE FROM trash_items")) {
@@ -330,8 +347,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
 
             try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
-                for (ItemStack item : allTrashItems) {
-                    String nbtData = MeowTrashCanCore.serializeItemStack(item);
+                for (org.bukkit.inventory.ItemStack item : allTrashItems) {
+                    String nbtData = ItemStackSerializer.serializeItemStack(item);
                     insertStatement.setString(1, nbtData);
                     insertStatement.addBatch();
                 }
@@ -342,8 +359,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         } else {
             File file = new File("trash_items.json");
             try (FileWriter writer = new FileWriter(file)) {
-                for (ItemStack item : allTrashItems) {
-                    String nbtData = MeowTrashCanCore.serializeItemStack(item);
+                for (org.bukkit.inventory.ItemStack item : allTrashItems) {
+                    String nbtData = ItemStackSerializer.serializeItemStack(item);
                     writer.write(nbtData + "\n");
                 }
             } catch (IOException e) {
@@ -351,6 +368,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             }
         }
     }
+
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
