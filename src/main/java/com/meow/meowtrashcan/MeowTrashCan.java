@@ -255,8 +255,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream)) {
 
-            // 直接使用 ItemStack 的方法序列化
-            item.save(dataOutputStream);
+            // 使用物品的 NBT 数据进行序列化
+            item.serialize(dataOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
             return Base64.getEncoder().encodeToString(byteArray); // 使用 Base64 编码
         } catch (IOException e) {
@@ -274,8 +274,8 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
             DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
 
-            // 使用 ItemStack 的方法反序列化
-            return ItemStack.load(dataInputStream);
+            // 反序列化 ItemStack
+            return ItemStack.deserialize(dataInputStream);
         } catch (IOException e) {
             e.printStackTrace();
             return null;
