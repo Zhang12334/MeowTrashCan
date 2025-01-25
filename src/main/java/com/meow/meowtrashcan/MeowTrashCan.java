@@ -266,15 +266,16 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
 
         try {
-            // 创建NBTItem对象并从字符串中加载数据
+            // 解析NBT字符串后恢复ItemStack
             NBTItem nbtItem = new NBTItem();
-            nbtItem.load(nbtData);  // 使用load方法加载NBT字符串
+            nbtItem.setString("nbt", nbtData);  // 使用setString来保存NBT字符串
             return nbtItem.getItem();  // 获取反序列化后的ItemStack
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
+
 
     private void loadTrashItems() {
         allTrashItems.clear();
