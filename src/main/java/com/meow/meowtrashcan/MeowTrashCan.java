@@ -17,6 +17,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
+import java.lang.reflect.Method;
+import net.minecraft.nbt.NBTTagCompound;
+import java.lang.reflect.InvocationTargetException;
 
 import java.io.*;
 import java.sql.*;
@@ -312,8 +315,6 @@ public void saveTrashItems() {
         Object nmsItem = asBukkitCopy.invoke(null, createStack.invoke(null, parse.invoke(null, nbtData)));
         return (ItemStack) nmsItem;
     }
-
-
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
