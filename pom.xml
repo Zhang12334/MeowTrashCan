@@ -42,13 +42,7 @@
             <artifactId>mysql-connector-java</artifactId>
             <version>8.0.23</version>
             <scope>compile</scope>
-        </dependency>    
-        <dependency>
-            <groupId>net.minecraft</groupId>
-            <artifactId>minecraft-server</artifactId>
-            <version>1.20.6</version>
-            <scope>provided</scope>
-        </dependency>        
+        </dependency>   
     </dependencies>
 
     <build>
@@ -100,7 +94,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>com.example.meowtrashcan.MeowTrashCan</mainClass>  <!-- 主类 -->
+                            <mainClass>com.meow.meowtrashcan.MeowTrashCan</mainClass>  <!-- 主类 -->
                         </manifest>
                     </archive>
                 </configuration>

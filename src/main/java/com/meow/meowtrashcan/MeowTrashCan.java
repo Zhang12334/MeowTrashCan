@@ -21,6 +21,7 @@ import java.lang.reflect.Method;
 import net.minecraft.nbt.NBTTagCompound;
 import java.lang.reflect.InvocationTargetException;
 
+
 import java.io.*;
 import java.sql.*;
 import java.util.*;
@@ -252,35 +253,20 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
-public void saveTrashItems() {
-    try {
-        String query = "DELETE FROM trash_items";  // 清除表中的旧数据
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.executeUpdate();
-        }
-
-        // 遍历所有的垃圾物品并保存 NBT 数据
-        for (ItemStack item : allTrashItems) {
-            String nbtData = getNBTData(item); // 使用反射获取 NBT 数据
-            try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
-                insertStatement.setString(1, nbtData); // 将 NBT 数据存入数据库
-                insertStatement.executeUpdate();
+    // 保存 ItemStack 的自定义 NBT 数据
+    public void saveTrashItems() {
+        try {
+            String query = "DELETE FROM trash_items";  // 清除表中的旧数据
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.executeUpdate();
             }
-        }
-    } catch (SQLException | ReflectiveOperationException e) {
-        e.printStackTrace();
-    }
-}
 
-    public void loadTrashItems() {
-        allTrashItems.clear();
-        try (Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
-            while (resultSet.next()) {
-                String nbtData = resultSet.getString("nbt_data");
-                ItemStack item = getItemStackFromNBT(nbtData); // 使用反射将 NBT 数据转换为 ItemStack
-                if (item != null) {
-                    allTrashItems.add(item); // 将物品添加到 allTrashItems
+            // 遍历所有的垃圾物品并保存 NBT 数据
+            for (ItemStack item : allTrashItems) {
+                String nbtData = getNBTData(item); // 获取 NBT 数据
+                try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
+                    insertStatement.setString(1, nbtData); // 将 NBT 数据存入数据库
+                    insertStatement.executeUpdate();
                 }
             }
         } catch (SQLException | ReflectiveOperationException e) {
@@ -289,32 +275,46 @@ public void saveTrashItems() {
     }
 
     // 获取 NBT 数据
-    private String getNBTData(ItemStack item) throws ReflectiveOperationException {
-        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.v1_20_R4.inventory.CraftItemStack");
-        Class<?> NBTTagCompound = Class.forName("net.minecraft.nbt.NBTTagCompound");
-        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
+    private String getNBTData(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            NamespacedKey key = new NamespacedKey("meow", "trash_data");  // 创建一个唯一的命名空间
+            meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, "custom_value");  // 存储自定义数据
 
-        Method asNMSCopy = CraftItemStack.getMethod("asNMSCopy", ItemStack.class);
-        Method save = ItemStack.getMethod("save", NBTTagCompound);
-
-        Object nmsItem = asNMSCopy.invoke(null, item);
-        Object nbt = save.invoke(nmsItem, NBTTagCompound.getDeclaredConstructor().newInstance());
-
-        return nbt.toString();
+            item.setItemMeta(meta);
+        }
+        return item.getItemMeta().getPersistentDataContainer().get(new NamespacedKey("meow", "trash_data"), PersistentDataType.STRING);
     }
 
-    // 从 NBT 数据中恢复 ItemStack
-    private ItemStack getItemStackFromNBT(String nbtData) throws ReflectiveOperationException {
-        Class<?> CraftItemStack = Class.forName("org.bukkit.craftbukkit.v1_20_R4.inventory.CraftItemStack");
-        Class<?> ItemStack = Class.forName("net.minecraft.world.item.ItemStack");
 
-        Method parse = Class.forName("net.minecraft.nbt.MojangsonParser").getMethod("a", String.class);
-        Method createStack = ItemStack.getMethod("a", NBTTagCompound.class);
-        Method asBukkitCopy = CraftItemStack.getMethod("asBukkitCopy", ItemStack.class);
-
-        Object nmsItem = asBukkitCopy.invoke(null, createStack.invoke(null, parse.invoke(null, nbtData)));
-        return (ItemStack) nmsItem;
+    public void loadTrashItems() {
+        allTrashItems.clear();
+        try (Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
+            while (resultSet.next()) {
+                String nbtData = resultSet.getString("nbt_data");
+                ItemStack item = getItemStackFromNBT(nbtData); // 使用自定义数据恢复 ItemStack
+                if (item != null) {
+                    allTrashItems.add(item); // 将物品添加到 allTrashItems
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
+
+    // 从数据库加载 NBT 数据
+    private ItemStack getItemStackFromNBT(String nbtData) {
+        ItemStack item = new ItemStack(Material.DIAMOND);  // 这里可以根据需要创建不同的物品
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            NamespacedKey key = new NamespacedKey("meow", "trash_data");
+            meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, nbtData);  // 恢复自定义数据
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
