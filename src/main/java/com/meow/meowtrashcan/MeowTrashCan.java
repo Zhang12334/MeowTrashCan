@@ -35,6 +35,11 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        if (!NBT.preloadApi()) {
+            getLogger().warning("NBT-API 未正确初始化，插件将被禁用");
+            getPluginLoader().disablePlugin(this);
+            return;
+        }
         // bstats
         int pluginId = 24401;
         Metrics metrics = new Metrics(this, pluginId);

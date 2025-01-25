@@ -3,7 +3,7 @@ main: com.meow.meowtrashcan.MeowTrashCan
 version: 1.1
 api-version: 1.20
 description: MeowTrashCan - 支持翻垃圾的跨服垃圾桶插件
-
+depend: [NBTAPI]
 commands:
   meowtrashcan:
     description: MeowTrashCan主命令
