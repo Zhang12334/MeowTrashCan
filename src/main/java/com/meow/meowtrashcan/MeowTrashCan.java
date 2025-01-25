@@ -18,8 +18,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
 
-import de.tr7zw.nbtapi.NBTItem;
-
 import java.io.*;
 import java.sql.*;
 import java.util.*;
