@@ -425,7 +425,6 @@ public ItemStack deserializeItem(String nbtData) {
 }
 
 
-
     private void saveTrashItems() {
         try {
             if (useMySQL) {
