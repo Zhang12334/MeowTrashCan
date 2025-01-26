@@ -291,8 +291,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
-    }
-public String serializeItem(ItemStack item) {
+    }public String serializeItem(ItemStack item) {
     JsonObject jsonObject = new JsonObject();
     
     // 获取并存储材质
@@ -320,6 +319,9 @@ public String serializeItem(ItemStack item) {
                 // 使用字符串表示键
                 nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
             });
+
+            // 存储耐久度
+            jsonObject.addProperty("durability", item.getDurability());
         }
     }
     jsonObject.add("nbt_data", nbtData);
@@ -375,8 +377,15 @@ public ItemStack deserializeItem(String nbtData) {
         }
     }
 
+    // 恢复耐久度
+    if (jsonObject.has("durability")) {
+        short durability = jsonObject.get("durability").getAsShort();
+        item.setDurability(durability);
+    }
+
     return item;
 }
+
 
 
 
