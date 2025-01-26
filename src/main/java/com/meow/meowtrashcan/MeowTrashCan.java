@@ -26,6 +26,10 @@ import org.bukkit.persistence.*;
 import org.bukkit.enchantments.Enchantment;
 import de.tr7zw.nbtapi.NBTItem;
 import de.tr7zw.nbtapi.*;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.NamespacedKey.*;
+import org.bukkit.NamespacedKey;
+import org.bukkit.*;
 
 import java.io.*;
 import java.sql.*;
