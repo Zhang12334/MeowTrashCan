@@ -330,20 +330,20 @@ public String serializeItem(ItemStack item) {
 
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
-    
+
     // 获取材质类型
     String materialName = jsonObject.get("type").getAsString();
     Material material = Material.getMaterial(materialName);
     if (material == null) {
         throw new IllegalArgumentException("Invalid material: " + materialName);
     }
-    
+
     // 获取数量
     int amount = jsonObject.get("amount").getAsInt();
-    
+
     // 创建 ItemStack 对象
     ItemStack item = new ItemStack(material, amount);
-    
+
     // 恢复附魔
     JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
     for (String key : enchantments.keySet()) {
@@ -355,8 +355,8 @@ public ItemStack deserializeItem(String nbtData) {
             System.err.println("Warning: Invalid enchantment " + key);
         }
     }
-    
-    // 恢复 NBT 数据（持久数据）
+
+    // 恢复 NBT 数据
     JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
     if (!nbtDataObj.isJsonNull()) {
         ItemMeta meta = item.getItemMeta();
@@ -364,9 +364,8 @@ public ItemStack deserializeItem(String nbtData) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
             for (String key : nbtDataObj.keySet()) {
                 try {
-                    // 使用字符串作为键
-                    String keyString = key;
-                    dataContainer.set(new org.bukkit.persistence.PersistentDataType.String(keyString), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
+                    // 直接存储为字符串数据类型
+                    dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
                 } catch (Exception e) {
                     // 处理无效的 NBT 键
                     System.err.println("Warning: Invalid NBT data for key " + key);
@@ -375,7 +374,7 @@ public ItemStack deserializeItem(String nbtData) {
             item.setItemMeta(meta);
         }
     }
-    
+
     return item;
 }
 
