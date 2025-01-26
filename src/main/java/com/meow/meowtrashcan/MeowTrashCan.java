@@ -262,145 +262,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
-
-public String serializeItem(ItemStack item) {
-    // 创建 JSON 对象
-    JsonObject jsonObject = new JsonObject();
-    
-    // 获取并存储物品类型
-    jsonObject.addProperty("type", item.getType().name());
-    
-    // 获取并存储物品数量（如果有）
-    jsonObject.addProperty("v", item.getAmount());
-    
-    // 获取并存储 ItemMeta 数据
-    if (item.hasItemMeta()) {
-        ItemMeta meta = item.getItemMeta();
-        JsonObject metaData = new JsonObject();
-        
-        // 处理附魔
-        if (meta.hasEnchants()) {
-            JsonObject enchantments = new JsonObject();
-            for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
-                enchantments.addProperty(entry.getKey().getKey().toString(), entry.getValue());
-            }
-            metaData.add("enchants", enchantments);
-        }
-        
-        // 处理修复费用
-        if (meta.hasRepairCost()) {
-            metaData.addProperty("repair-cost", meta.getRepairCost());
-        }
-        
-        // 处理耐久度
-        if (meta instanceof Damageable) {
-            metaData.addProperty("Damage", ((Damageable) meta).getDamage());
-        }
-        
-        // 处理显示名称（如果有）
-        if (meta.hasDisplayName()) {
-            metaData.addProperty("display-name", meta.getDisplayName());
-        }
-        
-        // 处理自定义模型数据
-        if (meta.hasCustomModelData()) {
-            metaData.addProperty("custom-model-data", meta.getCustomModelData());
-        }
-
-        // 处理自定义持久数据
-        JsonObject customData = new JsonObject();
-        PersistentDataContainer container = meta.getPersistentDataContainer();
-        for (NamespacedKey key : container.getKeys()) {
-            if (container.has(key, PersistentDataType.STRING)) {
-                customData.addProperty(key.toString(), container.get(key, PersistentDataType.STRING));
-            }
-            // 你可以根据需要扩展对更多数据类型的支持（如整数、长整型等）
-        }
-        
-        if (customData.size() > 0) {
-            metaData.add("custom", customData);
-        }
-        
-        jsonObject.add("meta", metaData);
-    }
-    
-    return jsonObject.toString();
-}
-
-
-public ItemStack deserializeItem(String serializedData) {
-    JsonObject jsonObject = JsonParser.parseString(serializedData).getAsJsonObject();
-    
-    // 获取物品类型
-    String materialName = jsonObject.get("type").getAsString();
-    Material material = Material.getMaterial(materialName);
-    if (material == null) {
-        throw new IllegalArgumentException("Invalid material: " + materialName);
-    }
-
-    // 获取物品数量
-    int amount = jsonObject.get("v").getAsInt();
-
-    // 创建 ItemStack 对象
-    ItemStack item = new ItemStack(material, amount);
-
-    // 恢复 ItemMeta 数据
-    if (jsonObject.has("meta")) {
-        JsonObject metaData = jsonObject.getAsJsonObject("meta");
-        ItemMeta meta = item.getItemMeta();
-        
-        // 恢复附魔
-        if (metaData.has("enchants")) {
-            JsonObject enchantments = metaData.getAsJsonObject("enchants");
-            for (Map.Entry<String, JsonElement> entry : enchantments.entrySet()) {
-                Enchantment enchantment = Enchantment.getByKey(NamespacedKey.fromString(entry.getKey()));
-                if (enchantment != null) {
-                    meta.addEnchant(enchantment, entry.getValue().getAsInt(), true);
-                }
-            }
-        }
-        
-        // 恢复修复费用
-        if (metaData.has("repair-cost")) {
-            meta.setRepairCost(metaData.get("repair-cost").getAsInt());
-        }
-        
-        // 恢复耐久度
-        if (metaData.has("Damage")) {
-            ((Damageable) meta).setDamage(metaData.get("Damage").getAsInt());
-        }
-
-        // 恢复显示名称
-        if (metaData.has("display-name")) {
-            meta.setDisplayName(metaData.get("display-name").getAsString());
-        }
-
-        // 恢复自定义模型数据
-        if (metaData.has("custom-model-data")) {
-            meta.setCustomModelData(metaData.get("custom-model-data").getAsInt());
-        }
-
-        // 恢复自定义持久数据
-        if (metaData.has("custom")) {
-            JsonObject customData = metaData.getAsJsonObject("custom");
-            PersistentDataContainer container = meta.getPersistentDataContainer();
-            for (Map.Entry<String, JsonElement> entry : customData.entrySet()) {
-                container.set(NamespacedKey.fromString(entry.getKey()), PersistentDataType.STRING, entry.getValue().getAsString());
-            }
-        }
-
-        item.setItemMeta(meta);
-    }
-
-    return item;
-}
-
-
-
-
-
-
-
 private void saveTrashItems() {
     try {
         if (useMySQL) {
@@ -410,28 +271,27 @@ private void saveTrashItems() {
 
             for (ItemStack item : allTrashItems) {
                 if (item != null && item.getType() != Material.AIR) {
-                    String nbtData = serializeItem(item); // 序列化物品为JSON或字符串
+                    String itemData = serializeItemToString(item); // 序列化物品为字符串
 
                     String insertQuery = "INSERT INTO trash_items (nbt_data) VALUES (?)";
                     PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
-                    preparedStatement.setString(1, nbtData);
+                    preparedStatement.setString(1, itemData);
                     preparedStatement.executeUpdate();
                 }
             }
         } else {
-            // 使用JSON存储
-            File file = new File(getDataFolder(), "trash_items.json");
-            FileWriter writer = new FileWriter(file);
-            JsonArray jsonArray = new JsonArray();
+            // 使用文本存储
+            File file = new File(getDataFolder(), "trash_items.txt");
+            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
 
             for (ItemStack item : allTrashItems) {
                 if (item != null && item.getType() != Material.AIR) {
-                    String nbtData = serializeItem(item); // 序列化物品为JSON或字符串
-                    jsonArray.add(nbtData);
+                    String itemData = serializeItemToString(item); // 序列化物品为字符串
+                    writer.write(itemData);
+                    writer.newLine();
                 }
             }
 
-            writer.write(jsonArray.toString());
             writer.close();
         }
     } catch (SQLException | IOException e) {
@@ -449,21 +309,20 @@ private void loadTrashItems() {
             ResultSet resultSet = connection.createStatement().executeQuery(query);
 
             while (resultSet.next()) {
-                String nbtData = resultSet.getString("nbt_data");
-                ItemStack item = deserializeItem(nbtData);  // 反序列化
+                String itemData = resultSet.getString("nbt_data");
+                ItemStack item = deserializeItemFromString(itemData);  // 反序列化
                 if (item != null && item.getType() != Material.AIR) {
                     allTrashItems.add(item);
                 }
             }
         } else {
-            // 从 JSON 文件加载
-            File file = new File(getDataFolder(), "trash_items.json");
+            // 从文件加载
+            File file = new File(getDataFolder(), "trash_items.txt");
             if (file.exists()) {
                 BufferedReader reader = new BufferedReader(new FileReader(file));
-                JsonArray jsonArray = JsonParser.parseReader(reader).getAsJsonArray();
-                for (JsonElement element : jsonArray) {
-                    String nbtData = element.getAsString();
-                    ItemStack item = deserializeItem(nbtData);  // 反序列化
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    ItemStack item = deserializeItemFromString(line);  // 反序列化
                     if (item != null && item.getType() != Material.AIR) {
                         allTrashItems.add(item);
                     }
@@ -475,6 +334,19 @@ private void loadTrashItems() {
         e.printStackTrace();
     }
 }
+
+private String serializeItemToString(ItemStack item) {
+    // 使用 NBT 序列化整个物品为字符串
+    NBTItem nbtItem = new NBTItem(item);
+    return nbtItem.toString();
+}
+
+private ItemStack deserializeItemFromString(String data) {
+    // 从 NBT 字符串中反序列化物品
+    NBTItem nbtItem = new NBTItem(data);
+    return nbtItem.getItem();
+}
+
 
 
 
