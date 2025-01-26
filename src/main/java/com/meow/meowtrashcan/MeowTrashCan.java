@@ -390,8 +390,12 @@ public ItemStack deserializeItem(String nbtData) {
                             dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.INTEGER, valueElement.getAsInt());
                         }
                     } else if (valueElement.isJsonObject()) {
-                        // 存储对象（如果需要支持复杂数据结构，可以根据需要进一步处理）
+                        // 如果是 JSON 对象，这里做处理，若需要支持更复杂的数据结构可继续扩展
+                        // 比如你可以将对象保存为某种特定的格式或者转化为其他类型
                         System.err.println("Warning: NBT data for key " + key + " is an object, skipping...");
+                    } else if (valueElement.isJsonArray()) {
+                        // 如果是 JSON 数组，你可以做类似处理
+                        System.err.println("Warning: NBT data for key " + key + " is an array, skipping...");
                     } else {
                         // 处理其他不支持的类型
                         System.err.println("Warning: Unsupported NBT data type for key " + key);
@@ -407,7 +411,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     // 恢复耐久度
     if (jsonObject.has("durability")) {
-        short durability = jsonObject.get("durability").getAsShort();
+        short durability = (short) jsonObject.get("durability").getAsInt();  // 修正耐久度的读取
         item.setDurability(durability);
     }
 
