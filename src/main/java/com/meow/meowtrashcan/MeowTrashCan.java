@@ -328,7 +328,7 @@ public String serializeItem(ItemStack item) {
                 nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
             });
 
-            // 特殊处理 itemsadder 数据
+            // 处理 itemsadder 数据
             if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id")) && dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"))) {
                 JsonObject components = new JsonObject();
                 JsonObject customData = new JsonObject();
@@ -463,6 +463,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
 
 
