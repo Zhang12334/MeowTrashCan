@@ -277,16 +277,14 @@ public String serializeItem(ItemStack item) {
     }
     jsonObject.add("enchantments", enchantments);
 
-    // 获取并存储 NBT 数据（持久数据容器）
+    // 获取 NBT 数据
     JsonObject nbtData = new JsonObject();
     if (item.hasItemMeta()) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
-
-            // 遍历所有键并根据类型存储
             dataContainer.getKeys().forEach(key -> {
-                // 明确指定具体的 PersistentDataType 类型
+                // 存储不同类型的数据
                 if (dataContainer.has(key, PersistentDataType.STRING)) {
                     String value = dataContainer.get(key, PersistentDataType.STRING);
                     nbtData.addProperty(key.getKey(), value);
@@ -312,23 +310,15 @@ public String serializeItem(ItemStack item) {
                     byte[] byteArray = dataContainer.get(key, PersistentDataType.BYTE_ARRAY);
                     nbtData.add(key.getKey(), JsonParser.parseString(new String(byteArray)));
                 }
-                // 可添加更多类型的处理逻辑
             });
-
-
-            // 存储耐久度
-            if (item.getType().getMaxDurability() > 0) {
-                jsonObject.addProperty("durability", item.getDurability());
-            }
         }
     }
-
+    
     jsonObject.add("nbt_data", nbtData);
     
     // 返回 JSON 字符串
     return jsonObject.toString();
 }
-
 
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
@@ -380,7 +370,6 @@ public ItemStack deserializeItem(String nbtData) {
                             }
                         }
                     }
-                    // 这里可以扩展更多类型的处理
                 } catch (Exception e) {
                     System.err.println("Warning: Invalid NBT data for key " + key);
                 }
@@ -397,6 +386,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
 
 
