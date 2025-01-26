@@ -25,6 +25,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonObject;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.namespaced.NamespacedKey;
 
 import java.io.*;
 import java.sql.*;
@@ -318,6 +319,7 @@ public String serializeItem(ItemStack item) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
             dataContainer.getKeys().forEach(key -> {
+                // 使用字符串表示键
                 nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
             });
         }
@@ -364,7 +366,9 @@ public ItemStack deserializeItem(String nbtData) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
             for (String key : nbtDataObj.keySet()) {
                 try {
-                    dataContainer.set(new org.bukkit.namespaced.NamespacedKey("your_plugin", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
+                    // 使用字符串作为键
+                    String keyString = key;
+                    dataContainer.set(new org.bukkit.persistence.PersistentDataType.String(keyString), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
                 } catch (Exception e) {
                     // 处理无效的 NBT 键
                     System.err.println("Warning: Invalid NBT data for key " + key);
@@ -376,6 +380,7 @@ public ItemStack deserializeItem(String nbtData) {
     
     return item;
 }
+
 
 
     private void saveTrashItems() {
