@@ -323,35 +323,35 @@ public String serializeItem(ItemStack item) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 存储 itemsadder 相关数据
-            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"))) {
-                JsonObject components = new JsonObject();
-                JsonObject customData = new JsonObject();
-                customData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING));
-                customData.addProperty("namespace", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING));
-                components.add("minecraft:custom_data", customData);
-                nbtData.add("components", components);
+            // 1. 检查并存储 itemsadder 相关数据
+            JsonObject components = new JsonObject();
+            JsonObject customData = new JsonObject();
+
+            // 只在 meta 中有 itemsadder 数据时才存储
+            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder"))) {
+                JsonObject itemsadderData = new JsonObject();
+                itemsadderData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING));
+                itemsadderData.addProperty("namespace", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING));
+                customData.add("itemsadder", itemsadderData);
             }
 
-            // 存储其他持久数据
-            dataContainer.getKeys().forEach(key -> {
-                nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
-            });
+            components.add("minecraft:custom_data", customData);
 
-            // 存储耐久度
-            jsonObject.addProperty("durability", item.getDurability());
-
-            // 存储自定义名称
+            // 添加自定义模型数据和名称
+            if (meta.hasCustomModelData()) {
+                jsonObject.addProperty("custom_model_data", meta.getCustomModelData());
+            }
             if (meta.hasDisplayName()) {
                 jsonObject.addProperty("custom_name", meta.getDisplayName());
             }
 
-            // 存储自定义模型数据
-            if (meta.hasCustomModelData()) {
-                jsonObject.addProperty("custom_model_data", meta.getCustomModelData());
-            }
+            nbtData.add("components", components);
         }
     }
+
+    // 2. 添加耐久度
+    jsonObject.addProperty("durability", item.getDurability());
+
     jsonObject.add("nbt_data", nbtData);
 
     // 返回 JSON 字符串
@@ -390,16 +390,19 @@ public ItemStack deserializeItem(String nbtData) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 恢复 custom_data 中的 itemsadder 数据
+            // 2. 恢复 custom_data 中的 itemsadder 数据
             if (nbtDataObj.has("components")) {
                 JsonObject components = nbtDataObj.getAsJsonObject("components");
                 if (components.has("minecraft:custom_data")) {
                     JsonObject customData = components.getAsJsonObject("minecraft:custom_data");
-                    if (customData.has("id") && customData.has("namespace")) {
-                        String id = customData.get("id").getAsString();
-                        String namespace = customData.get("namespace").getAsString();
-                        dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING, id);
-                        dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING, namespace);
+                    if (customData.has("itemsadder")) {
+                        JsonObject itemsadder = customData.getAsJsonObject("itemsadder");
+                        if (itemsadder.has("id") && itemsadder.has("namespace")) {
+                            String id = itemsadder.get("id").getAsString();
+                            String namespace = itemsadder.get("namespace").getAsString();
+                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING, id);
+                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING, namespace);
+                        }
                     }
                 }
             }
@@ -428,7 +431,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     // 恢复耐久度
     if (jsonObject.has("durability")) {
-        short durability = (short) jsonObject.get("durability").getAsInt();
+        short durability = (short) jsonObject.get("durability").getAsInt();  // 修正耐久度的读取
         item.setDurability(durability);
     }
 
