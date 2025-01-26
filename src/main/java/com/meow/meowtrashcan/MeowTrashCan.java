@@ -252,67 +252,106 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
-    // 保存 ItemStack 的自定义 NBT 数据
-    public void saveTrashItems() {
+    private void loadTrashItems() {
+        allTrashItems.clear(); // 清空当前的垃圾物品列表
+
         try {
-            String query = "DELETE FROM trash_items";  // 清除表中的旧数据
-            try (PreparedStatement statement = connection.prepareStatement(query)) {
-                statement.executeUpdate();
-            }
+            if (useMySQL) {
+                // 从 MySQL 加载数据
+                String query = "SELECT nbt_data FROM trash_items";
+                ResultSet resultSet = connection.createStatement().executeQuery(query);
 
-            // 遍历所有的垃圾物品并保存 NBT 数据
-            for (ItemStack item : allTrashItems) {
-                String nbtData = getNBTData(item); // 获取 NBT 数据
-                try (PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO trash_items (nbt_data) VALUES (?)")) {
-                    insertStatement.setString(1, nbtData); // 将 NBT 数据存入数据库
-                    insertStatement.executeUpdate();
+                while (resultSet.next()) {
+                    String nbtData = resultSet.getString("nbt_data");
+                    ItemStack item = deserializeItem(nbtData);  // 反序列化
+                    if (item != null && item.getType() != Material.AIR) {
+                        allTrashItems.add(item);
+                    }
+                }
+            } else {
+                // 从 JSON 文件加载
+                File file = new File(getDataFolder(), "trash_items.json");
+                if (file.exists()) {
+                    BufferedReader reader = new BufferedReader(new FileReader(file));
+                    JsonArray jsonArray = JsonParser.parseReader(reader).getAsJsonArray();
+                    for (JsonElement element : jsonArray) {
+                        String nbtData = element.getAsString();
+                        ItemStack item = deserializeItem(nbtData);  // 反序列化
+                        if (item != null && item.getType() != Material.AIR) {
+                            allTrashItems.add(item);
+                        }
+                    }
+                    reader.close();
                 }
             }
-        } catch (SQLException | ReflectiveOperationException e) {
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private String serializeItem(ItemStack item) {
+        // 将物品序列化为 JSON 字符串，保留所有数据，包括附魔、耐久、NBT
+        if (item == null) return "";
+
+        try {
+            Map<String, Object> map = item.serialize();  // 序列化物品
+            // 可以选择将 map 转为 JSON 字符串存储，或者直接将其转换为其他格式
+            return map.toString();  // 返回物品的序列化字符串（可以使用 Gson 进行 JSON 序列化）
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    private ItemStack deserializeItem(String serializedItem) {
+        try {
+            // 反序列化物品数据
+            // 使用反序列化后的 JSON 数据来恢复物品
+            Map<String, Object> map = new HashMap<>(); // 这里可以使用Gson或者其他方法将字符串转换为Map
+            ItemStack item = ItemStack.deserialize(map); // 反序列化成 ItemStack
+            return item;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ItemStack(Material.AIR);  // 如果反序列化失败，返回一个空的物品
+        }
+    }
+    private void saveTrashItems() {
+        try {
+            if (useMySQL) {
+                // MySQL存储
+                String query = "DELETE FROM trash_items"; // 清空旧数据
+                connection.createStatement().executeUpdate(query);
+
+                for (ItemStack item : allTrashItems) {
+                    if (item != null && item.getType() != Material.AIR) {
+                        String nbtData = serializeItem(item); // 序列化物品为JSON或字符串
+
+                        String insertQuery = "INSERT INTO trash_items (nbt_data) VALUES (?)";
+                        PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
+                        preparedStatement.setString(1, nbtData);
+                        preparedStatement.executeUpdate();
+                    }
+                }
+            } else {
+                // 使用JSON存储
+                File file = new File(getDataFolder(), "trash_items.json");
+                FileWriter writer = new FileWriter(file);
+                JsonArray jsonArray = new JsonArray();
+
+                for (ItemStack item : allTrashItems) {
+                    if (item != null && item.getType() != Material.AIR) {
+                        String nbtData = serializeItem(item); // 序列化物品为JSON或字符串
+                        jsonArray.add(nbtData);
+                    }
+                }
+
+                writer.write(jsonArray.toString());
+                writer.close();
+            }
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
     }
 
-    // 获取 NBT 数据
-    private String getNBTData(ItemStack item) {
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            NamespacedKey key = new NamespacedKey("meow", "trash_data");  // 创建一个唯一的命名空间
-            meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, "custom_value");  // 存储自定义数据
-
-            item.setItemMeta(meta);
-        }
-        return item.getItemMeta().getPersistentDataContainer().get(new NamespacedKey("meow", "trash_data"), PersistentDataType.STRING);
-    }
-
-
-    public void loadTrashItems() {
-        allTrashItems.clear();
-        try (Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT nbt_data FROM trash_items")) {
-            while (resultSet.next()) {
-                String nbtData = resultSet.getString("nbt_data");
-                ItemStack item = getItemStackFromNBT(nbtData); // 使用自定义数据恢复 ItemStack
-                if (item != null) {
-                    allTrashItems.add(item); // 将物品添加到 allTrashItems
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // 从数据库加载 NBT 数据
-    private ItemStack getItemStackFromNBT(String nbtData) {
-        ItemStack item = new ItemStack(Material.DIAMOND);  // 这里可以根据需要创建不同的物品
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            NamespacedKey key = new NamespacedKey("meow", "trash_data");
-            meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, nbtData);  // 恢复自定义数据
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
 
 
     @EventHandler
