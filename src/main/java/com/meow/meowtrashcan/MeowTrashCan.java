@@ -24,6 +24,10 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonObject;
 import org.bukkit.persistence.*;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.NamespacedKey;
+import org.bukkit.*;
+import org.bukkit.NamespacedKey.*;
+
 
 import java.io.*;
 import java.sql.*;
