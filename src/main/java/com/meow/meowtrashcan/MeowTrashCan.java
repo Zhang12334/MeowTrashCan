@@ -364,11 +364,11 @@ public ItemStack deserializeItem(String nbtData) {
                         if (nbtDataObj.get(key).getAsJsonPrimitive().isString()) {
                             dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
                         } else if (nbtDataObj.get(key).getAsJsonPrimitive().isNumber()) {
-                            if (nbtDataObj.get(key).getAsJsonPrimitive().isInt()) {
+                            if (nbtDataObj.get(key).getAsJsonPrimitive().getAsInt() != 0) {
                                 dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.INTEGER, nbtDataObj.get(key).getAsInt());
-                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().isLong()) {
+                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().getAsLong() != 0) {
                                 dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.LONG, nbtDataObj.get(key).getAsLong());
-                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().isDouble()) {
+                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().getAsDouble() != 0.0) {
                                 dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.DOUBLE, nbtDataObj.get(key).getAsDouble());
                             }
                         }
@@ -390,6 +390,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
 
 
