@@ -297,6 +297,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
     
+
 public String serializeItem(ItemStack item) {
     JsonObject jsonObject = new JsonObject();
 
@@ -327,12 +328,12 @@ public String serializeItem(ItemStack item) {
                 nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
             });
 
-            // 处理 custom_data (如果有)
-            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "components"))) {
+            // 特殊处理 itemsadder 数据
+            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id")) && dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"))) {
                 JsonObject components = new JsonObject();
                 JsonObject customData = new JsonObject();
-                customData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "custom_data_id"), PersistentDataType.STRING));
-                customData.addProperty("namespace", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "custom_data_namespace"), PersistentDataType.STRING));
+                customData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING));
+                customData.addProperty("namespace", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING));
                 components.add("minecraft:custom_data", customData);
                 nbtData.add("components", components);
             }
@@ -402,7 +403,6 @@ public ItemStack deserializeItem(String nbtData) {
                         }
                     } else if (valueElement.isJsonObject()) {
                         // 如果是 JSON 对象，这里做处理，若需要支持更复杂的数据结构可继续扩展
-                        // 比如你可以将对象保存为某种特定的格式或者转化为其他类型
                         System.err.println("Warning: NBT data for key " + key + " is an object, skipping...");
                     } else if (valueElement.isJsonArray()) {
                         // 如果是 JSON 数组，你可以做类似处理
@@ -417,15 +417,17 @@ public ItemStack deserializeItem(String nbtData) {
                 }
             }
 
-            // 处理 custom_data (如果存在)
+            // 处理 components 中的 custom_data
             if (nbtDataObj.has("components")) {
                 JsonObject components = nbtDataObj.getAsJsonObject("components");
                 if (components.has("minecraft:custom_data")) {
                     JsonObject customData = components.getAsJsonObject("minecraft:custom_data");
-                    String id = customData.get("id").getAsString();
-                    String namespace = customData.get("namespace").getAsString();
-                    dataContainer.set(new org.bukkit.NamespacedKey("mtc", "custom_data_id"), PersistentDataType.STRING, id);
-                    dataContainer.set(new org.bukkit.NamespacedKey("mtc", "custom_data_namespace"), PersistentDataType.STRING, namespace);
+                    if (customData.has("id") && customData.has("namespace")) {
+                        String id = customData.get("id").getAsString();
+                        String namespace = customData.get("namespace").getAsString();
+                        dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING, id);
+                        dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING, namespace);
+                    }
                 }
             }
 
@@ -461,6 +463,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
 
     private void saveTrashItems() {
