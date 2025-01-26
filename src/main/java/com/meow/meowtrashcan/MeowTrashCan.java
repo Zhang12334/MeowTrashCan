@@ -320,25 +320,31 @@ public String serializeItem(ItemStack item) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 存储自定义 NBT 标签
-            if (dataContainer.has(new org.bukkit.NamespacedKey("minecraft", "custom_data"), PersistentDataType.STRING)) {
-                String customData = dataContainer.get(new org.bukkit.NamespacedKey("minecraft", "custom_data"), PersistentDataType.STRING);
-                JsonObject customDataJson = JsonParser.parseString(customData).getAsJsonObject();
-                nbtData.add("custom_data", customDataJson);
-            }
+            // 遍历所有键并根据类型存储
+            dataContainer.getKeys().forEach(key -> {
+                PersistentDataType<?, ?> type = dataContainer.get(key, PersistentDataType.class);
+                
+                if (type == PersistentDataType.STRING) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
+                } else if (type == PersistentDataType.INTEGER) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.INTEGER));
+                } else if (type == PersistentDataType.BYTE) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.BYTE));
+                } else if (type == PersistentDataType.DOUBLE) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.DOUBLE));
+                } else if (type == PersistentDataType.FLOAT) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.FLOAT));
+                } else if (type == PersistentDataType.LONG) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.LONG));
+                } else if (type == PersistentDataType.SHORT) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.SHORT));
+                } else if (type == PersistentDataType.BYTE_ARRAY) {
+                    byte[] byteArray = dataContainer.get(key, PersistentDataType.BYTE_ARRAY);
+                    nbtData.add(key.getKey(), JsonParser.parseString(new String(byteArray)));
+                }
+                // 可添加更多类型的处理逻辑
+            });
 
-            // 存储 custom_model_data
-            if (dataContainer.has(new org.bukkit.NamespacedKey("minecraft", "custom_model_data"), PersistentDataType.INTEGER)) {
-                int customModelData = dataContainer.get(new org.bukkit.NamespacedKey("minecraft", "custom_model_data"), PersistentDataType.INTEGER);
-                nbtData.addProperty("custom_model_data", customModelData);
-            }
-
-            // 存储 custom_name
-            if (dataContainer.has(new org.bukkit.NamespacedKey("minecraft", "custom_name"), PersistentDataType.STRING)) {
-                String customName = dataContainer.get(new org.bukkit.NamespacedKey("minecraft", "custom_name"), PersistentDataType.STRING);
-                nbtData.addProperty("custom_name", customName);
-            }
-            
             // 存储耐久度
             if (item.getType().getMaxDurability() > 0) {
                 jsonObject.addProperty("durability", item.getDurability());
@@ -386,22 +392,27 @@ public ItemStack deserializeItem(String nbtData) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 恢复 custom_data
-            if (nbtDataObj.has("custom_data")) {
-                String customData = nbtDataObj.getAsJsonObject("custom_data").toString();
-                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", "custom_data"), PersistentDataType.STRING, customData);
-            }
-
-            // 恢复 custom_model_data
-            if (nbtDataObj.has("custom_model_data")) {
-                int customModelData = nbtDataObj.get("custom_model_data").getAsInt();
-                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", "custom_model_data"), PersistentDataType.INTEGER, customModelData);
-            }
-
-            // 恢复 custom_name
-            if (nbtDataObj.has("custom_name")) {
-                String customName = nbtDataObj.get("custom_name").getAsString();
-                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", "custom_name"), PersistentDataType.STRING, customName);
+            // 恢复所有的持久数据
+            for (String key : nbtDataObj.keySet()) {
+                try {
+                    // 判断数据类型并恢复
+                    if (nbtDataObj.get(key).isJsonPrimitive()) {
+                        if (nbtDataObj.get(key).getAsJsonPrimitive().isString()) {
+                            dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
+                        } else if (nbtDataObj.get(key).getAsJsonPrimitive().isNumber()) {
+                            if (nbtDataObj.get(key).getAsJsonPrimitive().isInt()) {
+                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.INTEGER, nbtDataObj.get(key).getAsInt());
+                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().isLong()) {
+                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.LONG, nbtDataObj.get(key).getAsLong());
+                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().isDouble()) {
+                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.DOUBLE, nbtDataObj.get(key).getAsDouble());
+                            }
+                        }
+                    }
+                    // 这里可以扩展更多类型的处理
+                } catch (Exception e) {
+                    System.err.println("Warning: Invalid NBT data for key " + key);
+                }
             }
 
             item.setItemMeta(meta);
@@ -416,6 +427,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
 
     private void saveTrashItems() {
