@@ -373,17 +373,32 @@ public ItemStack deserializeItem(String nbtData) {
 
     // 恢复 NBT 数据
     JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
-    if (!nbtDataObj.isJsonNull()) {
+    if (nbtDataObj != null && !nbtDataObj.isJsonNull()) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
             for (String key : nbtDataObj.keySet()) {
+                JsonElement valueElement = nbtDataObj.get(key);
                 try {
-                    // 直接存储为字符串数据类型
-                    dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
+                    // 判断数据类型并处理
+                    if (valueElement.isJsonPrimitive()) {
+                        if (valueElement.getAsJsonPrimitive().isString()) {
+                            // 存储字符串
+                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, valueElement.getAsString());
+                        } else if (valueElement.getAsJsonPrimitive().isNumber()) {
+                            // 存储数字
+                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.INTEGER, valueElement.getAsInt());
+                        }
+                    } else if (valueElement.isJsonObject()) {
+                        // 存储对象（如果需要支持复杂数据结构，可以根据需要进一步处理）
+                        System.err.println("Warning: NBT data for key " + key + " is an object, skipping...");
+                    } else {
+                        // 处理其他不支持的类型
+                        System.err.println("Warning: Unsupported NBT data type for key " + key);
+                    }
                 } catch (Exception e) {
                     // 处理无效的 NBT 键
-                    System.err.println("Warning: Invalid NBT data for key " + key);
+                    System.err.println("Warning: Invalid NBT data for key " + key + " with error " + e.getMessage());
                 }
             }
             item.setItemMeta(meta);
