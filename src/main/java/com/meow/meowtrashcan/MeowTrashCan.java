@@ -294,138 +294,121 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     }
 
 
-    public String serializeItem(ItemStack item) {
-        JsonObject jsonObject = new JsonObject();
-        
-        // 获取并存储材质
-        jsonObject.addProperty("type", item.getType().name());
-        
-        // 获取并存储数量
-        jsonObject.addProperty("amount", item.getAmount());
+public String serializeItem(ItemStack item) {
+    JsonObject jsonObject = new JsonObject();
+    
+    // 获取并存储材质
+    jsonObject.addProperty("type", item.getType().name());
+    
+    // 获取并存储数量
+    jsonObject.addProperty("amount", item.getAmount());
 
-        // 获取并存储附魔（如果有）
-        JsonObject enchantments = new JsonObject();
-        if (item.getEnchantments().size() > 0) {
-            for (Enchantment enchantment : item.getEnchantments().keySet()) {
-                enchantments.addProperty(enchantment.getKey().getKey(), item.getEnchantments().get(enchantment));
+    // 获取并存储附魔（如果有）
+    JsonObject enchantments = new JsonObject();
+    if (item.getEnchantments().size() > 0) {
+        for (Enchantment enchantment : item.getEnchantments().keySet()) {
+            enchantments.addProperty(enchantment.getKey().getKey(), item.getEnchantments().get(enchantment));
+        }
+    }
+    jsonObject.add("enchantments", enchantments);
+
+    // 获取并存储 NBT 数据（持久数据容器）
+    JsonObject nbtData = new JsonObject();
+    if (item.hasItemMeta()) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
+
+            // 存储自定义 NBT 标签
+            if (dataContainer.has(new org.bukkit.NamespacedKey("minecraft", "custom_data"), PersistentDataType.STRING)) {
+                String customData = dataContainer.get(new org.bukkit.NamespacedKey("minecraft", "custom_data"), PersistentDataType.STRING);
+                JsonObject customDataJson = JsonParser.parseString(customData).getAsJsonObject();
+                nbtData.add("custom_data", customDataJson);
+            }
+
+            // 存储 custom_model_data
+            if (dataContainer.has(new org.bukkit.NamespacedKey("minecraft", "custom_model_data"), PersistentDataType.INTEGER)) {
+                int customModelData = dataContainer.get(new org.bukkit.NamespacedKey("minecraft", "custom_model_data"), PersistentDataType.INTEGER);
+                nbtData.addProperty("custom_model_data", customModelData);
+            }
+
+            // 存储 custom_name
+            if (dataContainer.has(new org.bukkit.NamespacedKey("minecraft", "custom_name"), PersistentDataType.STRING)) {
+                String customName = dataContainer.get(new org.bukkit.NamespacedKey("minecraft", "custom_name"), PersistentDataType.STRING);
+                nbtData.addProperty("custom_name", customName);
             }
         }
-        jsonObject.add("enchantments", enchantments);
-
-        // 获取并存储 NBT 数据（持久数据容器）
-        JsonObject nbtData = new JsonObject();
-        if (item.hasItemMeta()) {
-            ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
-                dataContainer.getKeys().forEach(key -> {
-                    // 使用字符串表示键
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
-                });
-
-                // 存储耐久度
-                jsonObject.addProperty("durability", item.getDurability());
-
-                // 存储物品名称
-                if (meta.hasDisplayName()) {
-                    jsonObject.addProperty("name", meta.getDisplayName());
-                }
-
-                // 存储 Lore（描述）
-                if (meta.hasLore()) {
-                    JsonArray loreArray = new JsonArray();
-                    for (String line : meta.getLore()) {
-                        loreArray.add(line);
-                    }
-                    jsonObject.add("lore", loreArray);
-                }
-            }
-        }
-        jsonObject.add("nbt_data", nbtData);
-        
-        // 返回 JSON 字符串
-        return jsonObject.toString();
     }
 
+    jsonObject.add("nbt_data", nbtData);
+    
+    // 返回 JSON 字符串
+    return jsonObject.toString();
+}
 
-    public ItemStack deserializeItem(String nbtData) {
-        JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
 
-        // 获取材质类型
-        String materialName = jsonObject.get("type").getAsString();
-        Material material = Material.getMaterial(materialName);
-        if (material == null) {
-            throw new IllegalArgumentException("Invalid material: " + materialName);
-        }
 
-        // 获取数量
-        int amount = jsonObject.get("amount").getAsInt();
 
-        // 创建 ItemStack 对象
-        ItemStack item = new ItemStack(material, amount);
 
-        // 恢复附魔
-        JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
-        for (String key : enchantments.keySet()) {
-            Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(key));
-            if (enchantment != null) {
-                item.addUnsafeEnchantment(enchantment, enchantments.get(key).getAsInt());
-            } else {
-                // 记录下无效附魔信息或忽略
-                System.err.println("Warning: Invalid enchantment " + key);
-            }
-        }
 
-        // 恢复 NBT 数据
-        JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
-        if (!nbtDataObj.isJsonNull()) {
-            ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
-                for (String key : nbtDataObj.keySet()) {
-                    try {
-                        // 直接存储为字符串数据类型
-                        dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
-                    } catch (Exception e) {
-                        // 处理无效的 NBT 键
-                        System.err.println("Warning: Invalid NBT data for key " + key);
-                    }
-                }
-                item.setItemMeta(meta);
-            }
-        }
+public ItemStack deserializeItem(String nbtData) {
+    JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
 
-        // 恢复耐久度
-        if (jsonObject.has("durability")) {
-            short durability = jsonObject.get("durability").getAsShort();
-            item.setDurability(durability);
-        }
-
-        // 恢复物品名称
-        if (jsonObject.has("name")) {
-            ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                meta.setDisplayName(jsonObject.get("name").getAsString());
-                item.setItemMeta(meta);
-            }
-        }
-
-        // 恢复 Lore
-        if (jsonObject.has("lore")) {
-            ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                JsonArray loreArray = jsonObject.getAsJsonArray("lore");
-                List<String> lore = new ArrayList<>();
-                for (JsonElement element : loreArray) {
-                    lore.add(element.getAsString());
-                }
-                meta.setLore(lore);
-                item.setItemMeta(meta);
-            }
-        }
-
-        return item;
+    // 获取材质类型
+    String materialName = jsonObject.get("type").getAsString();
+    Material material = Material.getMaterial(materialName);
+    if (material == null) {
+        throw new IllegalArgumentException("Invalid material: " + materialName);
     }
+
+    // 获取数量
+    int amount = jsonObject.get("amount").getAsInt();
+
+    // 创建 ItemStack 对象
+    ItemStack item = new ItemStack(material, amount);
+
+    // 恢复附魔
+    JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
+    for (String key : enchantments.keySet()) {
+        Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(key));
+        if (enchantment != null) {
+            item.addUnsafeEnchantment(enchantment, enchantments.get(key).getAsInt());
+        } else {
+            System.err.println("Warning: Invalid enchantment " + key);
+        }
+    }
+
+    // 恢复 NBT 数据
+    JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
+    if (nbtDataObj != null && !nbtDataObj.isJsonNull()) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
+
+            // 恢复 custom_data
+            if (nbtDataObj.has("custom_data")) {
+                String customData = nbtDataObj.getAsJsonObject("custom_data").toString();
+                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", "custom_data"), PersistentDataType.STRING, customData);
+            }
+
+            // 恢复 custom_model_data
+            if (nbtDataObj.has("custom_model_data")) {
+                int customModelData = nbtDataObj.get("custom_model_data").getAsInt();
+                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", "custom_model_data"), PersistentDataType.INTEGER, customModelData);
+            }
+
+            // 恢复 custom_name
+            if (nbtDataObj.has("custom_name")) {
+                String customName = nbtDataObj.get("custom_name").getAsString();
+                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", "custom_name"), PersistentDataType.STRING, customName);
+            }
+
+            item.setItemMeta(meta);
+        }
+    }
+
+    return item;
+}
 
 
     private void saveTrashItems() {
