@@ -328,14 +328,17 @@ public String serializeItem(ItemStack item) {
             JsonObject customData = new JsonObject();
 
             // 只在 meta 中有 itemsadder 数据时才存储
-            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder"))) {
+            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"))) {
                 JsonObject itemsadderData = new JsonObject();
                 itemsadderData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING));
                 itemsadderData.addProperty("namespace", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING));
                 customData.add("itemsadder", itemsadderData);
             }
 
-            components.add("minecraft:custom_data", customData);
+            // 如果有 minecraft:custom_data 数据，则加入
+            if (customData.size() > 0) {
+                components.add("minecraft:custom_data", customData);
+            }
 
             // 添加自定义模型数据和名称
             if (meta.hasCustomModelData()) {
@@ -390,7 +393,7 @@ public ItemStack deserializeItem(String nbtData) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 2. 恢复 custom_data 中的 itemsadder 数据
+            // 2. 恢复 itemsadder 数据
             if (nbtDataObj.has("components")) {
                 JsonObject components = nbtDataObj.getAsJsonObject("components");
                 if (components.has("minecraft:custom_data")) {
@@ -457,7 +460,6 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
-
 
 
 
