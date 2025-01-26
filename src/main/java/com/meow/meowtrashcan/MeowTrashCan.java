@@ -332,7 +332,13 @@ public String serializeItem(ItemStack item) {
 
             // 存储自定义名称
             if (meta.hasDisplayName()) {
-                jsonObject.addProperty("custom_name", meta.getDisplayName());
+                // 使用简单的文本格式保存 custom_name
+                String customName = meta.getDisplayName();
+                JsonObject customNameJson = new JsonObject();
+                customNameJson.addProperty("color", "white");  // 可根据需求修改颜色
+                customNameJson.addProperty("italic", false);   // 设置是否斜体
+                customNameJson.addProperty("text", customName); // 直接存储文本
+                jsonObject.add("custom_name", customNameJson);
             }
 
             // 存储 minecraft:custom_data（这里的格式可以根据实际需要修改）
