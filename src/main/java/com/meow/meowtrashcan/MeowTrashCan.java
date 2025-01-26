@@ -332,20 +332,35 @@ public String serializeItem(ItemStack item) {
 
             // 存储自定义名称
             if (meta.hasDisplayName()) {
-                // 使用简单的文本格式保存 custom_name
                 String customName = meta.getDisplayName();
                 JsonObject customNameJson = new JsonObject();
-                customNameJson.addProperty("color", "white");  // 可根据需求修改颜色
-                customNameJson.addProperty("italic", false);   // 设置是否斜体
-                customNameJson.addProperty("text", customName); // 直接存储文本
+                customNameJson.addProperty("text", customName);
+
+                // 处理 custom_name 中的 extra 数组
+                if (customName.contains("{") && customName.contains("}")) {
+                    JsonArray extraArray = new JsonArray();
+                    // 解析并提取 extra 数据（根据实际情况动态构建）
+                    // 假设我们能够解析成对象格式，您可以根据实际情况设置更多的属性
+                    JsonObject extraObject = new JsonObject();
+                    extraObject.addProperty("color", "white");  // 示例：这里可以根据自定义颜色等内容来调整
+                    extraArray.add(extraObject);
+                    customNameJson.add("extra", extraArray);
+                }
+
                 jsonObject.add("custom_name", customNameJson);
             }
 
-            // 存储 minecraft:custom_data（这里的格式可以根据实际需要修改）
-            JsonObject customData = new JsonObject();
-            customData.addProperty("id", "mining_helmet");  // 示例 ID
-            customData.addProperty("namespace", "iawearables");  // 示例 namespace
-            jsonObject.add("custom_data", customData);
+            // 存储 minecraft:custom_data（这里的格式根据实际情况动态生成）
+            if (meta.getPersistentDataContainer().has(new NamespacedKey("itemsadder", "custom_data"))) {
+                JsonObject customData = new JsonObject();
+                String id = dataContainer.get(new NamespacedKey("itemsadder", "id"), PersistentDataType.STRING);
+                String namespace = dataContainer.get(new NamespacedKey("itemsadder", "namespace"), PersistentDataType.STRING);
+                if (id != null && namespace != null) {
+                    customData.addProperty("id", id);
+                    customData.addProperty("namespace", namespace);
+                    jsonObject.add("custom_data", customData);
+                }
+            }
         }
     }
     jsonObject.add("nbt_data", nbtData);
@@ -353,6 +368,7 @@ public String serializeItem(ItemStack item) {
     // 返回 JSON 字符串
     return jsonObject.toString();
 }
+
 
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
@@ -410,17 +426,27 @@ public ItemStack deserializeItem(String nbtData) {
     // 恢复自定义名称
     if (jsonObject.has("custom_name")) {
         JsonObject customNameJson = jsonObject.getAsJsonObject("custom_name");
-        if (customNameJson != null) {
-            String customName = customNameJson.get("text").getAsString(); // 获取文本
+        if (customNameJson.has("text")) {
+            String customName = customNameJson.get("text").getAsString();
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 meta.setDisplayName(customName);
+                
+                // 恢复 extra 数组（如果有的话）
+                if (customNameJson.has("extra")) {
+                    JsonArray extraArray = customNameJson.getAsJsonArray("extra");
+                    for (JsonElement extraElement : extraArray) {
+                        JsonObject extraObj = extraElement.getAsJsonObject();
+                        // 可以在这里动态设置额外的属性，如 color 等
+                    }
+                }
+
                 item.setItemMeta(meta);
             }
         }
     }
 
-    // 恢复自定义模型数据
+    // 恢复 custom_model_data
     if (jsonObject.has("custom_model_data")) {
         int customModelData = jsonObject.get("custom_model_data").getAsInt();
         ItemMeta meta = item.getItemMeta();
@@ -430,9 +456,26 @@ public ItemStack deserializeItem(String nbtData) {
         }
     }
 
+    // 恢复 itemsadder 的 custom_data（如果有的话）
+    if (jsonObject.has("custom_data")) {
+        JsonObject customData = jsonObject.getAsJsonObject("custom_data");
+        if (customData.has("id") && customData.has("namespace")) {
+            String id = customData.get("id").getAsString();
+            String namespace = customData.get("namespace").getAsString();
+
+            // 获取并设置 PersistentDataContainer 中的 itemsadder 数据
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
+                dataContainer.set(new NamespacedKey(namespace, "id"), PersistentDataType.STRING, id);
+                dataContainer.set(new NamespacedKey(namespace, "namespace"), PersistentDataType.STRING, namespace);
+                item.setItemMeta(meta);
+            }
+        }
+    }
+
     return item;
 }
-
 
 
     private void saveTrashItems() {
