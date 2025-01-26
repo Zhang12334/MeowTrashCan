@@ -325,16 +325,17 @@ public String serializeItem(ItemStack item) {
             // 存储耐久度
             jsonObject.addProperty("durability", item.getDurability());
 
-            // 存储自定义数据（如 custom_name, custom_model_data 等）
-            if (meta.getCustomModelData() > 0) {
+            // 检查并存储 custom_model_data
+            if (meta.hasCustomModelData()) {
                 jsonObject.addProperty("custom_model_data", meta.getCustomModelData());
             }
 
+            // 存储自定义名称
             if (meta.hasDisplayName()) {
                 jsonObject.addProperty("custom_name", meta.getDisplayName());
             }
 
-            // 处理 minecraft:custom_data（这里的格式可以根据实际需要修改）
+            // 存储 minecraft:custom_data（这里的格式可以根据实际需要修改）
             JsonObject customData = new JsonObject();
             customData.addProperty("id", "mining_helmet");  // 示例 ID
             customData.addProperty("namespace", "iawearables");  // 示例 namespace
@@ -346,7 +347,6 @@ public String serializeItem(ItemStack item) {
     // 返回 JSON 字符串
     return jsonObject.toString();
 }
-
 
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
@@ -401,7 +401,7 @@ public ItemStack deserializeItem(String nbtData) {
         item.setDurability(durability);
     }
 
-    // 恢复自定义名称和模型数据
+    // 恢复自定义名称
     if (jsonObject.has("custom_name")) {
         String customName = jsonObject.get("custom_name").getAsString();
         ItemMeta meta = item.getItemMeta();
@@ -411,6 +411,7 @@ public ItemStack deserializeItem(String nbtData) {
         }
     }
 
+    // 恢复自定义模型数据
     if (jsonObject.has("custom_model_data")) {
         int customModelData = jsonObject.get("custom_model_data").getAsInt();
         ItemMeta meta = item.getItemMeta();
