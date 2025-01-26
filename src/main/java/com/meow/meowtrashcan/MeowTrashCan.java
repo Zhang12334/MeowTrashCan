@@ -22,7 +22,9 @@ import java.lang.reflect.InvocationTargetException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-
+import com.google.gson.JsonObject;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.enchantments.Enchantment;
 
 import java.io.*;
 import java.sql.*;
@@ -291,32 +293,91 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
             e.printStackTrace();
         }
     }
-    private String serializeItem(ItemStack item) {
-        // 将物品序列化为 JSON 字符串，保留所有数据，包括附魔、耐久、NBT
-        if (item == null) return "";
+public String serializeItem(ItemStack item) {
+    JsonObject jsonObject = new JsonObject();
+    
+    // 获取并存储材质
+    jsonObject.addProperty("type", item.getType().name());
+    
+    // 获取并存储数量
+    jsonObject.addProperty("amount", item.getAmount());
 
-        try {
-            Map<String, Object> map = item.serialize();  // 序列化物品
-            // 可以选择将 map 转为 JSON 字符串存储，或者直接将其转换为其他格式
-            return map.toString();  // 返回物品的序列化字符串（可以使用 Gson 进行 JSON 序列化）
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "";
+    // 获取并存储附魔（如果有）
+    JsonObject enchantments = new JsonObject();
+    if (item.getEnchantments().size() > 0) {
+        for (Enchantment enchantment : item.getEnchantments().keySet()) {
+            enchantments.addProperty(enchantment.getKey().getKey(), item.getEnchantments().get(enchantment));
         }
     }
+    jsonObject.add("enchantments", enchantments);
 
-    private ItemStack deserializeItem(String serializedItem) {
-        try {
-            // 反序列化物品数据
-            // 使用反序列化后的 JSON 数据来恢复物品
-            Map<String, Object> map = new HashMap<>(); // 这里可以使用Gson或者其他方法将字符串转换为Map
-            ItemStack item = ItemStack.deserialize(map); // 反序列化成 ItemStack
-            return item;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new ItemStack(Material.AIR);  // 如果反序列化失败，返回一个空的物品
+    // 获取并存储 NBT 数据（持久数据容器）
+    JsonObject nbtData = new JsonObject();
+    if (item.hasItemMeta()) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
+            dataContainer.getKeys().forEach(key -> {
+                nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
+            });
         }
     }
+    jsonObject.add("nbt_data", nbtData);
+    
+    // 返回 JSON 字符串
+    return jsonObject.toString();
+}
+
+public ItemStack deserializeItem(String nbtData) {
+    JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
+    
+    // 获取材质类型
+    String materialName = jsonObject.get("type").getAsString();
+    Material material = Material.getMaterial(materialName);
+    if (material == null) {
+        throw new IllegalArgumentException("Invalid material: " + materialName);
+    }
+    
+    // 获取数量
+    int amount = jsonObject.get("amount").getAsInt();
+    
+    // 创建 ItemStack 对象
+    ItemStack item = new ItemStack(material, amount);
+    
+    // 恢复附魔
+    JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
+    for (String key : enchantments.keySet()) {
+        Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(key));
+        if (enchantment != null) {
+            item.addUnsafeEnchantment(enchantment, enchantments.get(key).getAsInt());
+        } else {
+            // 记录下无效附魔信息或忽略
+            System.err.println("Warning: Invalid enchantment " + key);
+        }
+    }
+    
+    // 恢复 NBT 数据（持久数据）
+    JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
+    if (!nbtDataObj.isJsonNull()) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
+            for (String key : nbtDataObj.keySet()) {
+                try {
+                    dataContainer.set(new org.bukkit.namespaced.NamespacedKey("your_plugin", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
+                } catch (Exception e) {
+                    // 处理无效的 NBT 键
+                    System.err.println("Warning: Invalid NBT data for key " + key);
+                }
+            }
+            item.setItemMeta(meta);
+        }
+    }
+    
+    return item;
+}
+
+
     private void saveTrashItems() {
         try {
             if (useMySQL) {
