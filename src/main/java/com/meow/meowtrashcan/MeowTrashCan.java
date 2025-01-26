@@ -258,6 +258,124 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         return true;
     }
 
+
+public String serializeItem(ItemStack item) {
+    JsonObject jsonObject = new JsonObject();
+    
+    // 获取并存储材质
+    jsonObject.addProperty("type", item.getType().name());
+    
+    // 获取并存储数量
+    jsonObject.addProperty("amount", item.getAmount());
+
+    // 获取并存储附魔（如果有）
+    JsonObject enchantments = new JsonObject();
+    if (item.getEnchantments().size() > 0) {
+        for (Map.Entry<Enchantment, Integer> entry : item.getEnchantments().entrySet()) {
+            enchantments.addProperty(entry.getKey().getKey().getKey(), entry.getValue());
+        }
+    }
+    jsonObject.add("enchantments", enchantments);
+
+    // 获取并存储 NBT 数据（使用 NBT-API）
+    JsonObject nbtData = new JsonObject();
+    NBTItem nbtItem = new NBTItem(item);  // 使用 NBT-API 获取物品的 NBT 数据
+
+    // 遍历 NBT 数据并存储
+    nbtItem.getKeys().forEach(key -> {
+        Object value = nbtItem.getObject(key);
+        if (value != null) {
+            nbtData.addProperty(key, value.toString());
+        }
+    });
+
+    jsonObject.add("nbt_data", nbtData);
+    
+    // 返回 JSON 字符串
+    return jsonObject.toString();
+}
+
+public ItemStack deserializeItem(String nbtData) {
+    JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
+
+    // 获取材质类型
+    String materialName = jsonObject.get("type").getAsString();
+    Material material = Material.getMaterial(materialName);
+    if (material == null) {
+        throw new IllegalArgumentException("Invalid material: " + materialName);
+    }
+
+    // 获取数量
+    int amount = jsonObject.get("amount").getAsInt();
+
+    // 创建 ItemStack 对象
+    ItemStack item = new ItemStack(material, amount);
+
+    // 恢复附魔
+    JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
+    for (Map.Entry<String, JsonElement> entry : enchantments.entrySet()) {
+        Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(entry.getKey()));
+        if (enchantment != null) {
+            item.addUnsafeEnchantment(enchantment, entry.getValue().getAsInt());
+        }
+    }
+
+    // 恢复 NBT 数据
+    JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
+    if (nbtDataObj != null && !nbtDataObj.isJsonNull()) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            NBTItem nbtItem = new NBTItem(item);  // 使用 NBT-API 重新创建 NBTItem
+            // 恢复所有 NBT 数据
+            for (Map.Entry<String, JsonElement> entry : nbtDataObj.entrySet()) {
+                nbtItem.setObject(entry.getKey(), entry.getValue().getAsString());
+            }
+            item.setItemMeta(meta);
+        }
+    }
+
+    return item;
+}
+
+
+private void saveTrashItems() {
+    try {
+        if (useMySQL) {
+            // MySQL存储
+            String query = "DELETE FROM trash_items"; // 清空旧数据
+            connection.createStatement().executeUpdate(query);
+
+            for (ItemStack item : allTrashItems) {
+                if (item != null && item.getType() != Material.AIR) {
+                    String nbtData = serializeItem(item); // 序列化物品为JSON或字符串
+
+                    String insertQuery = "INSERT INTO trash_items (nbt_data) VALUES (?)";
+                    PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
+                    preparedStatement.setString(1, nbtData);
+                    preparedStatement.executeUpdate();
+                }
+            }
+        } else {
+            // 使用JSON存储
+            File file = new File(getDataFolder(), "trash_items.json");
+            FileWriter writer = new FileWriter(file);
+            JsonArray jsonArray = new JsonArray();
+
+            for (ItemStack item : allTrashItems) {
+                if (item != null && item.getType() != Material.AIR) {
+                    String nbtData = serializeItem(item); // 序列化物品为JSON或字符串
+                    jsonArray.add(nbtData);
+                }
+            }
+
+            writer.write(jsonArray.toString());
+            writer.close();
+        }
+    } catch (SQLException | IOException e) {
+        e.printStackTrace();
+    }
+}
+
 private void loadTrashItems() {
     allTrashItems.clear(); // 清空当前的垃圾物品列表
 
@@ -294,110 +412,6 @@ private void loadTrashItems() {
         e.printStackTrace();
     }
 }
-
-public String serializeItem(ItemStack item) {
-    NBTItem nbtItem = new NBTItem(item);
-    
-    // 序列化 ItemStack 的基本信息
-    JsonObject jsonObject = new JsonObject();
-    jsonObject.addProperty("type", item.getType().name());
-    jsonObject.addProperty("amount", item.getAmount());
-
-    // 获取附魔信息
-    JsonObject enchantments = new JsonObject();
-    for (Map.Entry<Enchantment, Integer> enchantment : item.getEnchantments().entrySet()) {
-        enchantments.addProperty(enchantment.getKey().getKey().toString(), enchantment.getValue());
-    }
-    jsonObject.add("enchantments", enchantments);
-
-    // 获取 NBT 数据
-    JsonObject nbtData = new JsonObject();
-    nbtItem.getKeys().forEach(key -> {
-        nbtData.addProperty(key, nbtItem.getString(key));
-    });
-
-    jsonObject.add("nbt_data", nbtData);
-    
-    // 返回序列化后的 JSON 字符串
-    return jsonObject.toString();
-}
-
-public ItemStack deserializeItem(String nbtData) {
-    JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
-    
-    // 获取材质类型
-    String materialName = jsonObject.get("type").getAsString();
-    Material material = Material.getMaterial(materialName);
-    if (material == null) {
-        throw new IllegalArgumentException("Invalid material: " + materialName);
-    }
-
-    // 获取数量
-    int amount = jsonObject.get("amount").getAsInt();
-
-    // 创建 ItemStack 对象
-    ItemStack item = new ItemStack(material, amount);
-
-    // 恢复附魔
-    JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
-    for (String key : enchantments.keySet()) {
-        Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(key));
-        if (enchantment != null) {
-            item.addUnsafeEnchantment(enchantment, enchantments.get(key).getAsInt());
-        }
-    }
-
-    // 恢复 NBT 数据
-    JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
-    if (nbtDataObj != null) {
-        NBTItem nbtItem = new NBTItem(item);
-        for (String key : nbtDataObj.keySet()) {
-            nbtItem.setString(key, nbtDataObj.get(key).getAsString());
-        }
-        item = nbtItem.getItem();
-    }
-
-    return item;
-}
-
-private void saveTrashItems() {
-    try {
-        if (useMySQL) {
-            // MySQL 存储
-            String query = "DELETE FROM trash_items"; // 清空旧数据
-            connection.createStatement().executeUpdate(query);
-
-            for (ItemStack item : allTrashItems) {
-                if (item != null && item.getType() != Material.AIR) {
-                    String nbtData = serializeItem(item); // 序列化物品为 JSON 或字符串
-
-                    String insertQuery = "INSERT INTO trash_items (nbt_data) VALUES (?)";
-                    PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
-                    preparedStatement.setString(1, nbtData);
-                    preparedStatement.executeUpdate();
-                }
-            }
-        } else {
-            // 使用 JSON 存储
-            File file = new File(getDataFolder(), "trash_items.json");
-            FileWriter writer = new FileWriter(file);
-            JsonArray jsonArray = new JsonArray();
-
-            for (ItemStack item : allTrashItems) {
-                if (item != null && item.getType() != Material.AIR) {
-                    String nbtData = serializeItem(item); // 序列化物品为 JSON 或字符串
-                    jsonArray.add(nbtData);
-                }
-            }
-
-            writer.write(jsonArray.toString());
-            writer.close();
-        }
-    } catch (SQLException | IOException e) {
-        e.printStackTrace();
-    }
-}
-
 
 
 
