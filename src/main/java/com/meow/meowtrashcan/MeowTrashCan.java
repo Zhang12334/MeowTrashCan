@@ -271,29 +271,57 @@ public String serializeItem(ItemStack item) {
     // 获取并存储附魔（如果有）
     JsonObject enchantments = new JsonObject();
     if (item.getEnchantments().size() > 0) {
-        for (Map.Entry<Enchantment, Integer> entry : item.getEnchantments().entrySet()) {
-            enchantments.addProperty(entry.getKey().getKey().getKey(), entry.getValue());
+        for (Enchantment enchantment : item.getEnchantments().keySet()) {
+            enchantments.addProperty(enchantment.getKey().getKey(), item.getEnchantments().get(enchantment));
         }
     }
     jsonObject.add("enchantments", enchantments);
 
-    // 获取并存储 NBT 数据（使用 NBT-API）
+    // 获取并存储 NBT 数据（持久数据容器）
     JsonObject nbtData = new JsonObject();
-    NBTItem nbtItem = new NBTItem(item);  // 使用 NBT-API 获取物品的 NBT 数据
+    if (item.hasItemMeta()) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-    // 遍历 NBT 数据并存储
-    nbtItem.getKeys().forEach(key -> {
-        Object value = nbtItem.getObject(key, Object.class);  // 明确指定返回类型为 Object
-        if (value != null) {
-            nbtData.addProperty(key, value.toString());  // 将值转换为字符串存储
+            // 遍历所有键并根据类型存储
+            dataContainer.getKeys().forEach(key -> {
+                PersistentDataType<?, ?> type = dataContainer.get(key, PersistentDataType.class);
+                
+                if (type == PersistentDataType.STRING) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
+                } else if (type == PersistentDataType.INTEGER) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.INTEGER));
+                } else if (type == PersistentDataType.BYTE) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.BYTE));
+                } else if (type == PersistentDataType.DOUBLE) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.DOUBLE));
+                } else if (type == PersistentDataType.FLOAT) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.FLOAT));
+                } else if (type == PersistentDataType.LONG) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.LONG));
+                } else if (type == PersistentDataType.SHORT) {
+                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.SHORT));
+                } else if (type == PersistentDataType.BYTE_ARRAY) {
+                    byte[] byteArray = dataContainer.get(key, PersistentDataType.BYTE_ARRAY);
+                    nbtData.add(key.getKey(), JsonParser.parseString(new String(byteArray)));
+                }
+                // 可添加更多类型的处理逻辑
+            });
+
+            // 存储耐久度
+            if (item.getType().getMaxDurability() > 0) {
+                jsonObject.addProperty("durability", item.getDurability());
+            }
         }
-    });
+    }
 
     jsonObject.add("nbt_data", nbtData);
     
     // 返回 JSON 字符串
     return jsonObject.toString();
 }
+
 
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
@@ -313,10 +341,12 @@ public ItemStack deserializeItem(String nbtData) {
 
     // 恢复附魔
     JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
-    for (Map.Entry<String, JsonElement> entry : enchantments.entrySet()) {
-        Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(entry.getKey()));
+    for (String key : enchantments.keySet()) {
+        Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(key));
         if (enchantment != null) {
-            item.addUnsafeEnchantment(enchantment, entry.getValue().getAsInt());
+            item.addUnsafeEnchantment(enchantment, enchantments.get(key).getAsInt());
+        } else {
+            System.err.println("Warning: Invalid enchantment " + key);
         }
     }
 
@@ -325,17 +355,42 @@ public ItemStack deserializeItem(String nbtData) {
     if (nbtDataObj != null && !nbtDataObj.isJsonNull()) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            NBTItem nbtItem = new NBTItem(item);  // 使用 NBT-API 重新创建 NBTItem
-            // 恢复所有 NBT 数据
-            for (Map.Entry<String, JsonElement> entry : nbtDataObj.entrySet()) {
-                nbtItem.setObject(entry.getKey(), entry.getValue().getAsString());
+            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
+            // 恢复所有的持久数据
+            for (String key : nbtDataObj.keySet()) {
+                try {
+                    // 判断数据类型并恢复
+                    if (nbtDataObj.get(key).isJsonPrimitive()) {
+                        if (nbtDataObj.get(key).getAsJsonPrimitive().isString()) {
+                            dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
+                        } else if (nbtDataObj.get(key).getAsJsonPrimitive().isNumber()) {
+                            if (nbtDataObj.get(key).getAsJsonPrimitive().isInt()) {
+                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.INTEGER, nbtDataObj.get(key).getAsInt());
+                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().isLong()) {
+                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.LONG, nbtDataObj.get(key).getAsLong());
+                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().isDouble()) {
+                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.DOUBLE, nbtDataObj.get(key).getAsDouble());
+                            }
+                        }
+                    }
+                    // 这里可以扩展更多类型的处理
+                } catch (Exception e) {
+                    System.err.println("Warning: Invalid NBT data for key " + key);
+                }
             }
             item.setItemMeta(meta);
         }
     }
 
+    // 恢复耐久度
+    if (jsonObject.has("durability")) {
+        short durability = jsonObject.get("durability").getAsShort();
+        item.setDurability(durability);
+    }
+
     return item;
 }
+
 
 
 private void saveTrashItems() {
