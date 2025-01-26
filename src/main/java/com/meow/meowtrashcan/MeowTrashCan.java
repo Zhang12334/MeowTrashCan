@@ -286,28 +286,35 @@ public String serializeItem(ItemStack item) {
 
             // 遍历所有键并根据类型存储
             dataContainer.getKeys().forEach(key -> {
-                PersistentDataType<?, ?> type = dataContainer.get(key, PersistentDataType.class);
-                
-                if (type == PersistentDataType.STRING) {
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
-                } else if (type == PersistentDataType.INTEGER) {
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.INTEGER));
-                } else if (type == PersistentDataType.BYTE) {
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.BYTE));
-                } else if (type == PersistentDataType.DOUBLE) {
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.DOUBLE));
-                } else if (type == PersistentDataType.FLOAT) {
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.FLOAT));
-                } else if (type == PersistentDataType.LONG) {
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.LONG));
-                } else if (type == PersistentDataType.SHORT) {
-                    nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.SHORT));
-                } else if (type == PersistentDataType.BYTE_ARRAY) {
+                // 明确指定具体的 PersistentDataType 类型
+                if (dataContainer.has(key, PersistentDataType.STRING)) {
+                    String value = dataContainer.get(key, PersistentDataType.STRING);
+                    nbtData.addProperty(key.getKey(), value);
+                } else if (dataContainer.has(key, PersistentDataType.INTEGER)) {
+                    Integer value = dataContainer.get(key, PersistentDataType.INTEGER);
+                    nbtData.addProperty(key.getKey(), value);
+                } else if (dataContainer.has(key, PersistentDataType.BYTE)) {
+                    Byte value = dataContainer.get(key, PersistentDataType.BYTE);
+                    nbtData.addProperty(key.getKey(), value);
+                } else if (dataContainer.has(key, PersistentDataType.DOUBLE)) {
+                    Double value = dataContainer.get(key, PersistentDataType.DOUBLE);
+                    nbtData.addProperty(key.getKey(), value);
+                } else if (dataContainer.has(key, PersistentDataType.FLOAT)) {
+                    Float value = dataContainer.get(key, PersistentDataType.FLOAT);
+                    nbtData.addProperty(key.getKey(), value);
+                } else if (dataContainer.has(key, PersistentDataType.LONG)) {
+                    Long value = dataContainer.get(key, PersistentDataType.LONG);
+                    nbtData.addProperty(key.getKey(), value);
+                } else if (dataContainer.has(key, PersistentDataType.SHORT)) {
+                    Short value = dataContainer.get(key, PersistentDataType.SHORT);
+                    nbtData.addProperty(key.getKey(), value);
+                } else if (dataContainer.has(key, PersistentDataType.BYTE_ARRAY)) {
                     byte[] byteArray = dataContainer.get(key, PersistentDataType.BYTE_ARRAY);
                     nbtData.add(key.getKey(), JsonParser.parseString(new String(byteArray)));
                 }
                 // 可添加更多类型的处理逻辑
             });
+
 
             // 存储耐久度
             if (item.getType().getMaxDurability() > 0) {
