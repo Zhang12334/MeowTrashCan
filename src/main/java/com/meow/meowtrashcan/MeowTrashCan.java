@@ -323,32 +323,29 @@ public String serializeItem(ItemStack item) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 直接检查并存储 itemsadder 数据
-            JsonObject customData = new JsonObject();
-
-            // 假设 itemsadder 数据存储在 PersistentDataContainer 中
+            // 检查并存储 itemsadder 数据
             if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"))) {
+                String id = dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING);
+                String namespace = dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING);
+
+                // 添加到 nbtData 中
                 JsonObject itemsadderData = new JsonObject();
-                itemsadderData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING));
-                itemsadderData.addProperty("namespace", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING));
-                customData.add("itemsadder", itemsadderData);
+                itemsadderData.addProperty("id", id);
+                itemsadderData.addProperty("namespace", namespace);
+
+                JsonObject components = new JsonObject();
+                components.add("itemsadder", itemsadderData);
+                nbtData.add("components", components);
             }
 
-            // 存储自定义模型数据
+            // 存储其他信息
             if (meta.hasCustomModelData()) {
                 jsonObject.addProperty("custom_model_data", meta.getCustomModelData());
             }
-
-            // 存储自定义名称
             if (meta.hasDisplayName()) {
                 jsonObject.addProperty("custom_name", meta.getDisplayName());
             }
-
-            // 存储耐久度
             jsonObject.addProperty("durability", item.getDurability());
-
-            // 将所有自定义数据放入 nbtData
-            nbtData.add("components", customData);
         }
     }
 
@@ -357,6 +354,7 @@ public String serializeItem(ItemStack item) {
     // 返回 JSON 字符串
     return jsonObject.toString();
 }
+
 
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
@@ -390,7 +388,7 @@ public ItemStack deserializeItem(String nbtData) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 1. 恢复 itemsadder 数据
+            // 恢复 itemsadder 数据
             if (nbtDataObj.has("components")) {
                 JsonObject components = nbtDataObj.getAsJsonObject("components");
                 if (components.has("itemsadder")) {
@@ -398,7 +396,8 @@ public ItemStack deserializeItem(String nbtData) {
                     if (itemsadder.has("id") && itemsadder.has("namespace")) {
                         String id = itemsadder.get("id").getAsString();
                         String namespace = itemsadder.get("namespace").getAsString();
-                        // 将数据恢复到 PersistentDataContainer
+
+                        // 恢复到 PersistentDataContainer
                         dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING, id);
                         dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING, namespace);
                     }
@@ -429,7 +428,6 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
-
 
 
 
