@@ -283,9 +283,9 @@ public String serializeItem(ItemStack item) {
 
     // 遍历 NBT 数据并存储
     nbtItem.getKeys().forEach(key -> {
-        Object value = nbtItem.getObject(key);
+        Object value = nbtItem.getObject(key, Object.class);  // 明确指定返回类型为 Object
         if (value != null) {
-            nbtData.addProperty(key, value.toString());
+            nbtData.addProperty(key, value.toString());  // 将值转换为字符串存储
         }
     });
 
