@@ -297,7 +297,6 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         }
     }
     
-
 public String serializeItem(ItemStack item) {
     JsonObject jsonObject = new JsonObject();
 
@@ -328,7 +327,7 @@ public String serializeItem(ItemStack item) {
                 String id = dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING);
                 String namespace = dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING);
 
-                // 添加到 nbtData 中
+                // 添加到 nbtData 中的 components
                 JsonObject itemsadderData = new JsonObject();
                 itemsadderData.addProperty("id", id);
                 itemsadderData.addProperty("namespace", namespace);
@@ -338,13 +337,17 @@ public String serializeItem(ItemStack item) {
                 nbtData.add("components", components);
             }
 
-            // 存储其他信息
+            // 存储自定义模型数据
             if (meta.hasCustomModelData()) {
                 jsonObject.addProperty("custom_model_data", meta.getCustomModelData());
             }
+
+            // 存储自定义名称
             if (meta.hasDisplayName()) {
                 jsonObject.addProperty("custom_name", meta.getDisplayName());
             }
+
+            // 存储耐久度
             jsonObject.addProperty("durability", item.getDurability());
         }
     }
@@ -428,7 +431,6 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
-
 
 
     private void saveTrashItems() {
