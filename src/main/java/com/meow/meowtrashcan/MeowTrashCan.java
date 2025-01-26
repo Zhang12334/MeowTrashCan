@@ -327,6 +327,16 @@ public String serializeItem(ItemStack item) {
                 nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
             });
 
+            // 处理 custom_data (如果有)
+            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "components"))) {
+                JsonObject components = new JsonObject();
+                JsonObject customData = new JsonObject();
+                customData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "custom_data_id"), PersistentDataType.STRING));
+                customData.addProperty("namespace", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "custom_data_namespace"), PersistentDataType.STRING));
+                components.add("minecraft:custom_data", customData);
+                nbtData.add("components", components);
+            }
+
             // 存储耐久度
             jsonObject.addProperty("durability", item.getDurability());
 
@@ -346,6 +356,7 @@ public String serializeItem(ItemStack item) {
     // 返回 JSON 字符串
     return jsonObject.toString();
 }
+
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
 
@@ -405,6 +416,19 @@ public ItemStack deserializeItem(String nbtData) {
                     System.err.println("Warning: Invalid NBT data for key " + key + " with error " + e.getMessage());
                 }
             }
+
+            // 处理 custom_data (如果存在)
+            if (nbtDataObj.has("components")) {
+                JsonObject components = nbtDataObj.getAsJsonObject("components");
+                if (components.has("minecraft:custom_data")) {
+                    JsonObject customData = components.getAsJsonObject("minecraft:custom_data");
+                    String id = customData.get("id").getAsString();
+                    String namespace = customData.get("namespace").getAsString();
+                    dataContainer.set(new org.bukkit.NamespacedKey("mtc", "custom_data_id"), PersistentDataType.STRING, id);
+                    dataContainer.set(new org.bukkit.NamespacedKey("mtc", "custom_data_namespace"), PersistentDataType.STRING, namespace);
+                }
+            }
+
             item.setItemMeta(meta);
         }
     }
@@ -437,6 +461,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
     private void saveTrashItems() {
         try {
