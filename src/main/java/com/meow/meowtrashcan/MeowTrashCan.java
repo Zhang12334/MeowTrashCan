@@ -409,11 +409,14 @@ public ItemStack deserializeItem(String nbtData) {
 
     // 恢复自定义名称
     if (jsonObject.has("custom_name")) {
-        String customName = jsonObject.get("custom_name").getAsString();
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(customName);
-            item.setItemMeta(meta);
+        JsonObject customNameJson = jsonObject.getAsJsonObject("custom_name");
+        if (customNameJson != null) {
+            String customName = customNameJson.get("text").getAsString(); // 获取文本
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(customName);
+                item.setItemMeta(meta);
+            }
         }
     }
 
@@ -429,6 +432,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
 
     private void saveTrashItems() {
