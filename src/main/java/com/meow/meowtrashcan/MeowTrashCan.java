@@ -260,172 +260,137 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
 
 public String serializeItem(ItemStack item) {
+    // 创建 JSON 对象
     JsonObject jsonObject = new JsonObject();
     
-    // 获取并存储材质
+    // 获取并存储物品类型
     jsonObject.addProperty("type", item.getType().name());
     
-    // 获取并存储数量
-    jsonObject.addProperty("amount", item.getAmount());
-
-    // 获取并存储附魔（如果有）
-    JsonObject enchantments = new JsonObject();
-    if (item.getEnchantments().size() > 0) {
-        for (Enchantment enchantment : item.getEnchantments().keySet()) {
-            enchantments.addProperty(enchantment.getKey().getKey(), item.getEnchantments().get(enchantment));
-        }
-    }
-    jsonObject.add("enchantments", enchantments);
-
-    // 获取并存储耐久度
-    if (item.getType().getMaxDurability() > 0) {
-        jsonObject.addProperty("durability", item.getDurability());
-    }
-
-    // 获取并存储 NBT 数据（包括ItemsAdder等自定义物品的内容）
-    JsonObject nbtData = new JsonObject();
+    // 获取并存储物品数量（如果有）
+    jsonObject.addProperty("v", item.getAmount());
+    
+    // 获取并存储 ItemMeta 数据
     if (item.hasItemMeta()) {
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
-
-            // 遍历所有键并存储它们
-            dataContainer.getKeys().forEach(key -> {
-                if (dataContainer.has(key, PersistentDataType.STRING)) {
-                    String value = dataContainer.get(key, PersistentDataType.STRING);
-                    nbtData.addProperty(key.getKey(), value);
-                } else if (dataContainer.has(key, PersistentDataType.INTEGER)) {
-                    Integer value = dataContainer.get(key, PersistentDataType.INTEGER);
-                    nbtData.addProperty(key.getKey(), value);
-                } else if (dataContainer.has(key, PersistentDataType.BYTE)) {
-                    Byte value = dataContainer.get(key, PersistentDataType.BYTE);
-                    nbtData.addProperty(key.getKey(), value);
-                } else if (dataContainer.has(key, PersistentDataType.DOUBLE)) {
-                    Double value = dataContainer.get(key, PersistentDataType.DOUBLE);
-                    nbtData.addProperty(key.getKey(), value);
-                } else if (dataContainer.has(key, PersistentDataType.FLOAT)) {
-                    Float value = dataContainer.get(key, PersistentDataType.FLOAT);
-                    nbtData.addProperty(key.getKey(), value);
-                } else if (dataContainer.has(key, PersistentDataType.LONG)) {
-                    Long value = dataContainer.get(key, PersistentDataType.LONG);
-                    nbtData.addProperty(key.getKey(), value);
-                } else if (dataContainer.has(key, PersistentDataType.SHORT)) {
-                    Short value = dataContainer.get(key, PersistentDataType.SHORT);
-                    nbtData.addProperty(key.getKey(), value);
-                } else if (dataContainer.has(key, PersistentDataType.BYTE_ARRAY)) {
-                    byte[] byteArray = dataContainer.get(key, PersistentDataType.BYTE_ARRAY);
-                    nbtData.add(key.getKey(), JsonParser.parseString(new String(byteArray)));
-                }
-                // 可以添加更多的类型处理
-            });
-
-            // 存储自定义名称（如果有）
-            if (meta.hasDisplayName()) {
-                jsonObject.addProperty("display_name", meta.getDisplayName());
+        JsonObject metaData = new JsonObject();
+        
+        // 处理附魔
+        if (meta.hasEnchants()) {
+            JsonObject enchantments = new JsonObject();
+            for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
+                enchantments.addProperty(entry.getKey().getKey().toString(), entry.getValue());
             }
-            // 存储自定义Lore（如果有）
-            if (meta.hasLore()) {
-                JsonArray lore = new JsonArray();
-                for (String line : meta.getLore()) {
-                    lore.add(line);
-                }
-                jsonObject.add("lore", lore);
-            }
+            metaData.add("enchants", enchantments);
         }
+        
+        // 处理修复费用
+        if (meta.hasRepairCost()) {
+            metaData.addProperty("repair-cost", meta.getRepairCost());
+        }
+        
+        // 处理耐久度
+        if (meta instanceof Damageable) {
+            metaData.addProperty("Damage", ((Damageable) meta).getDamage());
+        }
+        
+        // 处理显示名称（如果有）
+        if (meta.hasDisplayName()) {
+            metaData.addProperty("display-name", meta.getDisplayName());
+        }
+        
+        // 处理自定义模型数据
+        if (meta.hasCustomModelData()) {
+            metaData.addProperty("custom-model-data", meta.getCustomModelData());
+        }
+
+        // 处理自定义持久数据
+        JsonObject customData = new JsonObject();
+        PersistentDataContainer container = meta.getPersistentDataContainer();
+        for (NamespacedKey key : container.getKeys()) {
+            if (container.has(key, PersistentDataType.STRING)) {
+                customData.addProperty(key.toString(), container.get(key, PersistentDataType.STRING));
+            }
+            // 你可以根据需要扩展对更多数据类型的支持（如整数、长整型等）
+        }
+        
+        if (customData.size() > 0) {
+            metaData.add("custom", customData);
+        }
+        
+        jsonObject.add("meta", metaData);
     }
     
-    jsonObject.add("nbt_data", nbtData);
-    
-    // 返回 JSON 字符串
     return jsonObject.toString();
 }
 
 
-public ItemStack deserializeItem(String nbtData) {
-    JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
-
-    // 获取材质类型
+public ItemStack deserializeItem(String serializedData) {
+    JsonObject jsonObject = JsonParser.parseString(serializedData).getAsJsonObject();
+    
+    // 获取物品类型
     String materialName = jsonObject.get("type").getAsString();
     Material material = Material.getMaterial(materialName);
     if (material == null) {
         throw new IllegalArgumentException("Invalid material: " + materialName);
     }
 
-    // 获取数量
-    int amount = jsonObject.get("amount").getAsInt();
+    // 获取物品数量
+    int amount = jsonObject.get("v").getAsInt();
 
     // 创建 ItemStack 对象
     ItemStack item = new ItemStack(material, amount);
 
-    // 恢复附魔
-    JsonObject enchantments = jsonObject.getAsJsonObject("enchantments");
-    for (String key : enchantments.keySet()) {
-        Enchantment enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.fromString(key));
-        if (enchantment != null) {
-            item.addUnsafeEnchantment(enchantment, enchantments.get(key).getAsInt());
-        } else {
-            System.err.println("Warning: Invalid enchantment " + key);
-        }
-    }
-
-    // 恢复耐久度
-    if (jsonObject.has("durability")) {
-        short durability = jsonObject.get("durability").getAsShort();
-        item.setDurability(durability);
-    }
-
-    // 恢复 NBT 数据
-    JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
-    if (nbtDataObj != null && !nbtDataObj.isJsonNull()) {
+    // 恢复 ItemMeta 数据
+    if (jsonObject.has("meta")) {
+        JsonObject metaData = jsonObject.getAsJsonObject("meta");
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
-            // 恢复所有的持久数据
-            for (String key : nbtDataObj.keySet()) {
-                try {
-                    if (nbtDataObj.get(key).isJsonPrimitive()) {
-                        if (nbtDataObj.get(key).getAsJsonPrimitive().isString()) {
-                            dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
-                        } else if (nbtDataObj.get(key).getAsJsonPrimitive().isNumber()) {
-                            if (nbtDataObj.get(key).getAsJsonPrimitive().getAsInt() != 0) {
-                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.INTEGER, nbtDataObj.get(key).getAsInt());
-                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().getAsLong() != 0) {
-                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.LONG, nbtDataObj.get(key).getAsLong());
-                            } else if (nbtDataObj.get(key).getAsJsonPrimitive().getAsDouble() != 0.0) {
-                                dataContainer.set(new org.bukkit.NamespacedKey("minecraft", key), PersistentDataType.DOUBLE, nbtDataObj.get(key).getAsDouble());
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    System.err.println("Warning: Invalid NBT data for key " + key);
+        
+        // 恢复附魔
+        if (metaData.has("enchants")) {
+            JsonObject enchantments = metaData.getAsJsonObject("enchants");
+            for (Map.Entry<String, JsonElement> entry : enchantments.entrySet()) {
+                Enchantment enchantment = Enchantment.getByKey(NamespacedKey.fromString(entry.getKey()));
+                if (enchantment != null) {
+                    meta.addEnchant(enchantment, entry.getValue().getAsInt(), true);
                 }
             }
-            item.setItemMeta(meta);
         }
-    }
-
-    // 恢复显示名称和Lore
-    if (jsonObject.has("display_name")) {
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(jsonObject.get("display_name").getAsString());
+        
+        // 恢复修复费用
+        if (metaData.has("repair-cost")) {
+            meta.setRepairCost(metaData.get("repair-cost").getAsInt());
         }
-    }
+        
+        // 恢复耐久度
+        if (metaData.has("Damage")) {
+            ((Damageable) meta).setDamage(metaData.get("Damage").getAsInt());
+        }
 
-    if (jsonObject.has("lore")) {
-        JsonArray lore = jsonObject.getAsJsonArray("lore");
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            List<String> loreList = new ArrayList<>();
-            for (JsonElement line : lore) {
-                loreList.add(line.getAsString());
+        // 恢复显示名称
+        if (metaData.has("display-name")) {
+            meta.setDisplayName(metaData.get("display-name").getAsString());
+        }
+
+        // 恢复自定义模型数据
+        if (metaData.has("custom-model-data")) {
+            meta.setCustomModelData(metaData.get("custom-model-data").getAsInt());
+        }
+
+        // 恢复自定义持久数据
+        if (metaData.has("custom")) {
+            JsonObject customData = metaData.getAsJsonObject("custom");
+            PersistentDataContainer container = meta.getPersistentDataContainer();
+            for (Map.Entry<String, JsonElement> entry : customData.entrySet()) {
+                container.set(NamespacedKey.fromString(entry.getKey()), PersistentDataType.STRING, entry.getValue().getAsString());
             }
-            meta.setLore(loreList);
         }
+
+        item.setItemMeta(meta);
     }
 
     return item;
 }
+
 
 
 
