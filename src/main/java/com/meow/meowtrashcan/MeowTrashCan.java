@@ -323,11 +323,10 @@ public String serializeItem(ItemStack item) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 1. 检查并存储 itemsadder 相关数据
-            JsonObject components = new JsonObject();
+            // 直接检查并存储 itemsadder 数据
             JsonObject customData = new JsonObject();
 
-            // 只在 meta 中有 itemsadder 数据时才存储
+            // 假设 itemsadder 数据存储在 PersistentDataContainer 中
             if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"))) {
                 JsonObject itemsadderData = new JsonObject();
                 itemsadderData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING));
@@ -335,25 +334,23 @@ public String serializeItem(ItemStack item) {
                 customData.add("itemsadder", itemsadderData);
             }
 
-            // 如果有 minecraft:custom_data 数据，则加入
-            if (customData.size() > 0) {
-                components.add("minecraft:custom_data", customData);
-            }
-
-            // 添加自定义模型数据和名称
+            // 存储自定义模型数据
             if (meta.hasCustomModelData()) {
                 jsonObject.addProperty("custom_model_data", meta.getCustomModelData());
             }
+
+            // 存储自定义名称
             if (meta.hasDisplayName()) {
                 jsonObject.addProperty("custom_name", meta.getDisplayName());
             }
 
-            nbtData.add("components", components);
+            // 存储耐久度
+            jsonObject.addProperty("durability", item.getDurability());
+
+            // 将所有自定义数据放入 nbtData
+            nbtData.add("components", customData);
         }
     }
-
-    // 2. 添加耐久度
-    jsonObject.addProperty("durability", item.getDurability());
 
     jsonObject.add("nbt_data", nbtData);
 
@@ -393,67 +390,39 @@ public ItemStack deserializeItem(String nbtData) {
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
 
-            // 2. 恢复 itemsadder 数据
+            // 1. 恢复 itemsadder 数据
             if (nbtDataObj.has("components")) {
                 JsonObject components = nbtDataObj.getAsJsonObject("components");
-                if (components.has("minecraft:custom_data")) {
-                    JsonObject customData = components.getAsJsonObject("minecraft:custom_data");
-                    if (customData.has("itemsadder")) {
-                        JsonObject itemsadder = customData.getAsJsonObject("itemsadder");
-                        if (itemsadder.has("id") && itemsadder.has("namespace")) {
-                            String id = itemsadder.get("id").getAsString();
-                            String namespace = itemsadder.get("namespace").getAsString();
-                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING, id);
-                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING, namespace);
-                        }
+                if (components.has("itemsadder")) {
+                    JsonObject itemsadder = components.getAsJsonObject("itemsadder");
+                    if (itemsadder.has("id") && itemsadder.has("namespace")) {
+                        String id = itemsadder.get("id").getAsString();
+                        String namespace = itemsadder.get("namespace").getAsString();
+                        // 将数据恢复到 PersistentDataContainer
+                        dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING, id);
+                        dataContainer.set(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"), PersistentDataType.STRING, namespace);
                     }
                 }
             }
 
-            // 恢复其他持久数据
-            for (String key : nbtDataObj.keySet()) {
-                JsonElement valueElement = nbtDataObj.get(key);
-                try {
-                    if (valueElement.isJsonPrimitive()) {
-                        if (valueElement.getAsJsonPrimitive().isString()) {
-                            // 存储字符串
-                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, valueElement.getAsString());
-                        } else if (valueElement.getAsJsonPrimitive().isNumber()) {
-                            // 存储数字
-                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.INTEGER, valueElement.getAsInt());
-                        }
-                    }
-                } catch (Exception e) {
-                    System.err.println("Warning: Invalid NBT data for key " + key + " with error " + e.getMessage());
-                }
+            // 恢复自定义模型数据
+            if (jsonObject.has("custom_model_data")) {
+                int customModelData = jsonObject.get("custom_model_data").getAsInt();
+                meta.setCustomModelData(customModelData);
             }
 
-            item.setItemMeta(meta);
-        }
-    }
+            // 恢复自定义名称
+            if (jsonObject.has("custom_name")) {
+                String customName = jsonObject.get("custom_name").getAsString();
+                meta.setDisplayName(customName);
+            }
 
-    // 恢复耐久度
-    if (jsonObject.has("durability")) {
-        short durability = (short) jsonObject.get("durability").getAsInt();  // 修正耐久度的读取
-        item.setDurability(durability);
-    }
+            // 恢复耐久度
+            if (jsonObject.has("durability")) {
+                short durability = (short) jsonObject.get("durability").getAsInt();
+                item.setDurability(durability);
+            }
 
-    // 恢复自定义名称
-    if (jsonObject.has("custom_name")) {
-        String customName = jsonObject.get("custom_name").getAsString();
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(customName);
-            item.setItemMeta(meta);
-        }
-    }
-
-    // 恢复自定义模型数据
-    if (jsonObject.has("custom_model_data")) {
-        int customModelData = jsonObject.get("custom_model_data").getAsInt();
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setCustomModelData(customModelData);
             item.setItemMeta(meta);
         }
     }
