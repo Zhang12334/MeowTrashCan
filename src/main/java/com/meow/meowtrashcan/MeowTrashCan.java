@@ -322,14 +322,9 @@ public String serializeItem(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
-            
-            // 遍历所有的自定义数据
-            dataContainer.getKeys().forEach(key -> {
-                nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
-            });
 
-            // 处理 itemsadder 数据
-            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id")) && dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_namespace"))) {
+            // 存储 itemsadder 相关数据
+            if (dataContainer.has(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"))) {
                 JsonObject components = new JsonObject();
                 JsonObject customData = new JsonObject();
                 customData.addProperty("id", dataContainer.get(new org.bukkit.NamespacedKey("mtc", "itemsadder_id"), PersistentDataType.STRING));
@@ -337,6 +332,11 @@ public String serializeItem(ItemStack item) {
                 components.add("minecraft:custom_data", customData);
                 nbtData.add("components", components);
             }
+
+            // 存储其他持久数据
+            dataContainer.getKeys().forEach(key -> {
+                nbtData.addProperty(key.getKey(), dataContainer.get(key, PersistentDataType.STRING));
+            });
 
             // 存储耐久度
             jsonObject.addProperty("durability", item.getDurability());
@@ -389,35 +389,8 @@ public ItemStack deserializeItem(String nbtData) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
-            for (String key : nbtDataObj.keySet()) {
-                JsonElement valueElement = nbtDataObj.get(key);
-                try {
-                    // 判断数据类型并处理
-                    if (valueElement.isJsonPrimitive()) {
-                        if (valueElement.getAsJsonPrimitive().isString()) {
-                            // 存储字符串
-                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, valueElement.getAsString());
-                        } else if (valueElement.getAsJsonPrimitive().isNumber()) {
-                            // 存储数字
-                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.INTEGER, valueElement.getAsInt());
-                        }
-                    } else if (valueElement.isJsonObject()) {
-                        // 如果是 JSON 对象，这里做处理，若需要支持更复杂的数据结构可继续扩展
-                        System.err.println("Warning: NBT data for key " + key + " is an object, skipping...");
-                    } else if (valueElement.isJsonArray()) {
-                        // 如果是 JSON 数组，你可以做类似处理
-                        System.err.println("Warning: NBT data for key " + key + " is an array, skipping...");
-                    } else {
-                        // 处理其他不支持的类型
-                        System.err.println("Warning: Unsupported NBT data type for key " + key);
-                    }
-                } catch (Exception e) {
-                    // 处理无效的 NBT 键
-                    System.err.println("Warning: Invalid NBT data for key " + key + " with error " + e.getMessage());
-                }
-            }
 
-            // 处理 components 中的 custom_data
+            // 恢复 custom_data 中的 itemsadder 数据
             if (nbtDataObj.has("components")) {
                 JsonObject components = nbtDataObj.getAsJsonObject("components");
                 if (components.has("minecraft:custom_data")) {
@@ -431,13 +404,31 @@ public ItemStack deserializeItem(String nbtData) {
                 }
             }
 
+            // 恢复其他持久数据
+            for (String key : nbtDataObj.keySet()) {
+                JsonElement valueElement = nbtDataObj.get(key);
+                try {
+                    if (valueElement.isJsonPrimitive()) {
+                        if (valueElement.getAsJsonPrimitive().isString()) {
+                            // 存储字符串
+                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, valueElement.getAsString());
+                        } else if (valueElement.getAsJsonPrimitive().isNumber()) {
+                            // 存储数字
+                            dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.INTEGER, valueElement.getAsInt());
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Warning: Invalid NBT data for key " + key + " with error " + e.getMessage());
+                }
+            }
+
             item.setItemMeta(meta);
         }
     }
 
     // 恢复耐久度
     if (jsonObject.has("durability")) {
-        short durability = (short) jsonObject.get("durability").getAsInt();  // 修正耐久度的读取
+        short durability = (short) jsonObject.get("durability").getAsInt();
         item.setDurability(durability);
     }
 
@@ -463,6 +454,7 @@ public ItemStack deserializeItem(String nbtData) {
 
     return item;
 }
+
 
 
 
