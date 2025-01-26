@@ -291,7 +291,10 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
         } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
-    }public String serializeItem(ItemStack item) {
+    }
+
+
+public String serializeItem(ItemStack item) {
     JsonObject jsonObject = new JsonObject();
     
     // 获取并存储材质
@@ -322,6 +325,20 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
 
             // 存储耐久度
             jsonObject.addProperty("durability", item.getDurability());
+
+            // 存储物品名称
+            if (meta.hasDisplayName()) {
+                jsonObject.addProperty("name", meta.getDisplayName());
+            }
+
+            // 存储 Lore（描述）
+            if (meta.hasLore()) {
+                JsonArray loreArray = new JsonArray();
+                for (String line : meta.getLore()) {
+                    loreArray.add(line);
+                }
+                jsonObject.add("lore", loreArray);
+            }
         }
     }
     jsonObject.add("nbt_data", nbtData);
@@ -329,6 +346,7 @@ public class MeowTrashCan extends JavaPlugin implements Listener {
     // 返回 JSON 字符串
     return jsonObject.toString();
 }
+
 
 public ItemStack deserializeItem(String nbtData) {
     JsonObject jsonObject = JsonParser.parseString(nbtData).getAsJsonObject();
@@ -357,6 +375,59 @@ public ItemStack deserializeItem(String nbtData) {
             System.err.println("Warning: Invalid enchantment " + key);
         }
     }
+
+    // 恢复 NBT 数据
+    JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
+    if (!nbtDataObj.isJsonNull()) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer dataContainer = meta.getPersistentDataContainer();
+            for (String key : nbtDataObj.keySet()) {
+                try {
+                    // 直接存储为字符串数据类型
+                    dataContainer.set(new org.bukkit.NamespacedKey("mtc", key), PersistentDataType.STRING, nbtDataObj.get(key).getAsString());
+                } catch (Exception e) {
+                    // 处理无效的 NBT 键
+                    System.err.println("Warning: Invalid NBT data for key " + key);
+                }
+            }
+            item.setItemMeta(meta);
+        }
+    }
+
+    // 恢复耐久度
+    if (jsonObject.has("durability")) {
+        short durability = jsonObject.get("durability").getAsShort();
+        item.setDurability(durability);
+    }
+
+    // 恢复物品名称
+    if (jsonObject.has("name")) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(jsonObject.get("name").getAsString());
+            item.setItemMeta(meta);
+        }
+    }
+
+    // 恢复 Lore
+    if (jsonObject.has("lore")) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            JsonArray loreArray = jsonObject.getAsJsonArray("lore");
+            List<String> lore = new ArrayList<>();
+            for (JsonElement element : loreArray) {
+                lore.add(element.getAsString());
+            }
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+    }
+
+    return item;
+}
+
+
 
     // 恢复 NBT 数据
     JsonObject nbtDataObj = jsonObject.getAsJsonObject("nbt_data");
